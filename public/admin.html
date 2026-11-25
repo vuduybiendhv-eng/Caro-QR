@@ -17,27 +17,37 @@
     <header>
       <div class="eyebrow">HOST CONTROL PANEL</div>
       <h1>CARO LIVE</h1>
-      <p>Điều khiển phòng · OBS / TikTok LIVE</p>
+      <p>Điều khiển phòng · TikTok LIVE</p>
     </header>
 
     <section class="join">
-      <label>Admin PIN</label>
+      <label for="pin">Admin PIN</label>
       <input id="pin" type="password" placeholder="Nhập PIN quản trị">
       <p>Không chia sẻ PIN này với người xem.</p>
     </section>
 
     <section class="join">
-      <h2>Thêm người đã tặng quà (duyệt thủ công)</h2>
-      <p>Chủ LIVE nhìn thấy quà trên TikTok ở điện thoại 1, sau đó nhập đúng tên tài khoản tại đây.</p>
-      <div class="joinrow">
-        <input id="giftUser" placeholder="Tên TikTok người tặng">
-        <button id="addPlayer">Xác nhận quà</button>
+      <h2>📨 YÊU CẦU THAM GIA · CHỜ DUYỆT</h2>
+      <p>Người xem đăng ký ở trang chơi sẽ xuất hiện tại đây.</p>
+      <div id="pendingQueue" class="queue">
+        Đang tải yêu cầu đăng ký…
       </div>
     </section>
 
     <section>
-      <h2>Hàng chờ quà tặng</h2>
-      <div id="queue" class="queue">Đang tải…</div>
+      <h2>🎮 DANH SÁCH ĐÃ DUYỆT · CHỜ ĐẤU</h2>
+      <div id="queue" class="queue">
+        Đang tải…
+      </div>
+    </section>
+
+    <section class="join">
+      <h2>Thêm người đã tặng quà (duyệt thủ công)</h2>
+      <p>Chủ LIVE xác nhận quà đã nhận trên TikTok rồi nhập tên tài khoản tại đây.</p>
+      <div class="joinrow">
+        <input id="giftUser" placeholder="Tên TikTok người tặng">
+        <button id="addPlayer">Xác nhận quà</button>
+      </div>
     </section>
 
     <div class="soundbar">
