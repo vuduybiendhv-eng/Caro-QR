@@ -412,3 +412,57 @@ footer {
     grid-template-columns: 1fr;
   }
 }
+
+/* FIX GIAO DIEN CARO TREN DIEN THOAI */
+.game-area {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 230px;
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+}
+
+.board-panel {
+  width: 100%;
+  min-width: 0;
+  max-width: 100%;
+  overflow: hidden;
+}
+
+.board-panel .board {
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
+}
+
+.game-sidebar {
+  min-width: 0;
+}
+
+@media (max-width: 900px) {
+  .game-area {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .board-panel {
+    width: 100%;
+  }
+
+  .board-panel .board {
+    width: 100%;
+    max-width: 100%;
+    gap: 2px;
+    padding: 4px;
+  }
+
+  .game-sidebar {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+@media (max-width: 420px) {
+  .game-sidebar {
+    grid-template-columns: 1fr;
+  }
+}
