@@ -4,7 +4,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
-  <title>Caro Live — QR room</title>
+  <title>Caro Live</title>
   <link rel="stylesheet" href="/style.css">
 </head>
 <body>
@@ -20,6 +20,7 @@
     </header>
 
     <section class="arena-players">
+
       <div class="player-card host-player">
         <div class="avatar3d">
           <img src="/caro-host-chibi.png" alt="Chủ LIVE">
@@ -45,62 +46,64 @@
         </div>
         <span class="stone-preview black-stone"></span>
       </div>
+
     </section>
 
-    <div class="game-status">
+    <section class="game-status">
       <div class="status" id="status">Đang kết nối…</div>
       <div class="soundbar">
         <button id="soundToggle" type="button">🔊 Bật âm thanh</button>
       </div>
-      <p class="sound-note">
-        Âm báo nước đi, người chơi vào phòng và chiến thắng
-      </p>
-    </div>
+    </section>
 
     <section class="game-area">
+
+      <nav class="game-nav">
+        <div class="nav-item">👥<span>Phòng chờ</span></div>
+        <div class="nav-item">🎮<span>Đang chơi</span></div>
+        <div class="nav-item">🏆<span>BXH</span></div>
+        <div class="nav-item">📖<span>Luật chơi</span></div>
+        <div class="nav-item">⚙️<span>Cài đặt</span></div>
+      </nav>
+
       <div class="board-panel">
         <div class="board-heading">BÀN CỜ CARO · 15×15</div>
         <div class="board" id="board"
              aria-label="Bàn cờ caro 15 nhân 15"></div>
       </div>
 
-      
-<aside class="game-sidebar">
+      <aside class="game-sidebar">
 
-  <div class="sidebar-card live-card">
-    <h2>🔴 LIVE ĐANG CHẠY</h2>
-    <p>🎁 Chào mừng người chơi Caro Live!</p>
-    <p>👀 Cùng tham gia thách đấu chủ phòng.</p>
-  </div>
+        <div class="sidebar-card live-card">
+          <h2>🔴 LIVE ĐANG CHẠY</h2>
+          <p>👀 Chào mừng người xem!</p>
+          <p>🎁 Tham gia thách đấu chủ LIVE.</p>
+        </div>
 
-  <div class="sidebar-card">
-    <h2>⚪⚫ LƯỢT CHƠI</h2>
-    <div class="turn-item">
-      <span class="white-stone stone-preview"></span>
-      <span>Chủ LIVE · Quân trắng</span>
-    </div>
-    <div class="turn-item">
-      <span class="black-stone stone-preview"></span>
-      <span>Người xem · Quân đen</span>
-    </div>
-    <div class="status-copy">
-      5 quân liên tiếp để chiến thắng
-    </div>
-  </div>
+        <div class="sidebar-card">
+          <h2>⚪ LƯỢT CHƠI</h2>
+          <div class="turn-item">
+            <span class="stone-preview white-stone"></span>
+            <span>Chủ LIVE (Trắng)</span>
+          </div>
+          <div class="turn-item">
+            <span class="stone-preview black-stone"></span>
+            <span>Người xem (Đen)</span>
+          </div>
+        </div>
 
-  <div class="sidebar-card qr-card">
-    <h2>📱 QUÉT QR THAM GIA</h2>
-    <img src="/api/qr" alt="Mã QR tham gia Caro Live">
-    <p>Quét mã để vào phòng chơi</p>
-  </div>
+        <div class="sidebar-card qr-card">
+          <h2>📱 QUÉT QR THAM GIA</h2>
+          <img src="/api/qr" alt="Mã QR tham gia Caro Live">
+          <p>Quét QR để vào phòng</p>
+        </div>
 
-  <div class="sidebar-card">
-    <h2>🎁 THAM GIA</h2>
-    <p>Vào phòng, tặng quà trên LIVE và chờ chủ phòng xác nhận.</p>
-  </div>
+        <div class="sidebar-card">
+          <h2>🎁 THAM GIA</h2>
+          <p>Vào phòng, tặng quà trên LIVE và chờ chủ phòng xác nhận.</p>
+        </div>
 
-</aside>
-
+      </aside>
     </section>
 
     <section class="join">
@@ -109,16 +112,18 @@
         <input id="username" placeholder="Ví dụ: ten_tiktok">
         <button id="join" type="button">Vào phòng</button>
       </div>
-      <p>
-        Quét QR để mở trang này. Tặng quà trên LIVE,
-        chờ xác nhận và chủ phòng chọn bạn.
-      </p>
+      <p>Quét QR để mở trang này. Tặng quà trên LIVE, chờ xác nhận và chủ phòng chọn bạn.</p>
       <div id="notice"></div>
     </section>
 
+    <section class="chat-panel">
+      <span>💬</span>
+      <span class="chat-placeholder">Khung trò chuyện sẽ được tích hợp ở bước tiếp theo</span>
+      <span>😊</span>
+    </section>
+
     <footer>
-      5 quân liên tiếp để chiến thắng ·
-      Nước đi được đồng bộ trực tiếp
+      5 quân liên tiếp để chiến thắng · Nước đi được đồng bộ trực tiếp
     </footer>
 
   </main>
