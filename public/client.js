@@ -15,8 +15,8 @@ function render(s) {
   document.getElementById("status").textContent = s.winner ? (s.winner==="X" ? "🏆 CHỦ LIVE THẮNG!" : `🏆 ${s.activePlayer} CHIẾN THẮNG!`) : (s.turn==="O" ? `Đến lượt ${s.activePlayer || "người xem"} (O)` : "Đến lượt chủ LIVE (X)");
   boardEl.innerHTML = "";
   s.board.forEach((v,i) => {
-    const b = document.createElement("button"); b.className = "cell "+(v||"");
-    b.textContent = v || "·"; b.disabled = !!v || !!s.winner || s.turn !== "O" || !s.activePlayer;
+    const b = document.createElement("button"); b.className = "cell "+(v||""); if(v)b.setAttribute("aria-label", v === "X" ? "Quân trắng" : "Quân đen");
+    b.textContent = v ? "" : ""; b.disabled = !!v || !!s.winner || s.turn !== "O" || !s.activePlayer;
     if(v)b.classList.add('pop');
     b.addEventListener("click", () => socket.emit("viewer:move", { index:i }));
     boardEl.appendChild(b);
