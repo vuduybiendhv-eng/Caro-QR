@@ -20,13 +20,14 @@ const ADMIN_PIN = process.env.ADMIN_PIN || "CHANGE_ME";
 const GIFT_TOKEN = process.env.GIFT_WEBHOOK_TOKEN || "CHANGE_ME";
 const BASE_URL = (process.env.PUBLIC_BASE_URL || "").replace(/\/$/, "");
 
+const TURN_TIME = 30;
+
 app.set("trust proxy", process.env.TRUST_PROXY === "true");
 
 app.use(helmet({ contentSecurityPolicy: false }));
 app.use(express.json({ limit: "32kb" }));
 app.use(express.static(path.join(__dirname, "public")));
 
-// TRANG NGƯỜI CHƠI
 app.get("/play", (_req, res) => {
   res.sendFile(path.join(__dirname, "public", "index.html"));
 });
@@ -37,10 +38,7 @@ let turn = "X";
 let winner = null;
 let activePlayer = null;
 
-// Người đã được duyệt, chờ đấu
 let queue = [];
-
-// Người đăng ký, chờ duyệt
 let pendingQueue = [];
 
 let scores = {
@@ -49,6 +47,29 @@ let scores = {
 };
 
 let lastMoves = [];
+
+// THỜI GIAN LƯỢT
+let turnDeadline = null;
+let lastBroadcastSecond = -1;
+
+function remainingSeconds() {
+  if (!turnDeadline || winner) return 0;
+
+  return Math.max(
+    0,
+    Math.ceil((turnDeadline - Date.now()) / 1000)
+  );
+}
+
+function startTurnTimer() {
+  turnDeadline = Date.now() + TURN_TIME * 1000;
+  lastBroadcastSecond = -1;
+}
+
+function stopTurnTimer() {
+  turnDeadline = null;
+  lastBroadcastSecond = -1;
+}
 
 // TẠO TRẠNG THÁI CÔNG KHAI
 function publicState() {
@@ -59,6 +80,10 @@ function publicState() {
     turn,
     winner,
     activePlayer,
+
+    turnTime: TURN_TIME,
+    remainingSeconds: remainingSeconds(),
+    turnDeadline,
 
     queue: queue.map(({ username, gift, at }) => ({
       username,
@@ -80,6 +105,41 @@ function publicState() {
 function broadcast() {
   io.emit("state", publicState());
 }
+
+// ĐỒNG HỒ MÁY CHỦ
+setInterval(() => {
+  if (!turnDeadline || winner) return;
+
+  const remaining = remainingSeconds();
+
+  // HẾT 30 GIÂY: TỰ ĐỘNG THUA
+  if (Date.now() >= turnDeadline) {
+    const timedOutTurn = turn;
+
+    winner = timedOutTurn === "X" ? "O" : "X";
+
+    if (timedOutTurn === "X") {
+      scores.viewers++;
+    } else {
+      scores.host++;
+    }
+
+    stopTurnTimer();
+    broadcast();
+
+    console.log(
+      `Hết giờ lượt ${timedOutTurn}. Người thắng: ${winner}`
+    );
+
+    return;
+  }
+
+  // CẬP NHẬT ĐỒNG HỒ MỖI GIÂY
+  if (remaining !== lastBroadcastSecond) {
+    lastBroadcastSecond = remaining;
+    broadcast();
+  }
+}, 200);
 
 // LÀM SẠCH TÊN TIKTOK
 function cleanUsername(value) {
@@ -337,16 +397,14 @@ app.post("/api/admin/select", authAdmin, (req, res) => {
   }
 
   activePlayer = found.username;
-
-  // Đưa người chơi ra khỏi hàng chờ
   queue = queue.filter(p => p !== found);
 
-  // Bắt đầu ván mới
   board = Array(225).fill(null);
   turn = "X";
   winner = null;
   lastMoves = [];
 
+  startTurnTimer();
   broadcast();
 
   res.json({ ok: true });
@@ -362,10 +420,12 @@ app.post("/api/admin/move", authAdmin, (req, res) => {
     idx >= 225 ||
     board[idx] !== null ||
     winner ||
-    turn !== "X"
+    turn !== "X" ||
+    !turnDeadline ||
+    Date.now() >= turnDeadline
   ) {
     return res.status(400).json({
-      error: "Nước đi không hợp lệ."
+      error: "Nước đi không hợp lệ hoặc đã hết giờ."
     });
   }
 
@@ -375,8 +435,10 @@ app.post("/api/admin/move", authAdmin, (req, res) => {
   if (checkWin(board, idx, "X")) {
     winner = "X";
     scores.host++;
+    stopTurnTimer();
   } else {
     turn = "O";
+    startTurnTimer();
   }
 
   broadcast();
@@ -392,6 +454,7 @@ app.post("/api/admin/next", authAdmin, (_req, res) => {
   winner = null;
   lastMoves = [];
 
+  stopTurnTimer();
   broadcast();
 
   res.json({ ok: true });
@@ -481,12 +544,10 @@ function registerViewer(socket, username) {
 io.on("connection", socket => {
   socket.emit("state", publicState());
 
-  // TƯƠNG THÍCH SỰ KIỆN CŨ
   socket.on("viewer:join", ({ username } = {}) => {
     registerViewer(socket, username);
   });
 
-  // SỰ KIỆN ĐĂNG KÝ MỚI
   socket.on("viewer:register", ({ username } = {}) => {
     registerViewer(socket, username);
   });
@@ -495,7 +556,6 @@ io.on("connection", socket => {
   socket.on("viewer:move", ({ index } = {}) => {
     const username = socket.data.username;
 
-    // Chỉ đúng người đang được chọn mới được đánh
     if (
       !username ||
       !activePlayer ||
@@ -509,30 +569,32 @@ io.on("connection", socket => {
 
     const idx = Number(index);
 
-    // Kiểm tra ô, lượt đánh và trạng thái ván
     if (
       !Number.isInteger(idx) ||
       idx < 0 ||
       idx >= 225 ||
       board[idx] !== null ||
       winner ||
-      turn !== "O"
+      turn !== "O" ||
+      !turnDeadline ||
+      Date.now() >= turnDeadline
     ) {
       return socket.emit(
         "notice",
-        "Chưa đến lượt bạn hoặc ô này không hợp lệ."
+        "Chưa đến lượt bạn, đã hết giờ hoặc ô này không hợp lệ."
       );
     }
 
-    // ĐÁNH QUÂN O
     board[idx] = "O";
     lastMoves.push(idx);
 
     if (checkWin(board, idx, "O")) {
       winner = "O";
       scores.viewers++;
+      stopTurnTimer();
     } else {
       turn = "X";
+      startTurnTimer();
     }
 
     broadcast();
