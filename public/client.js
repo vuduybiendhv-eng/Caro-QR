@@ -16,7 +16,31 @@ let registered = false;
 let firstState = true;
 let serverClockOffset = 0;
 
-// HIỆU ỨNG AN TOÀN
+let pendingMoveIndex = null;
+let moveRequestTimeout = null;
+
+// KHOI PHUC TEN NGUOI CHOI DA LUU
+try {
+  username = localStorage.getItem("caroUsername") || "";
+
+  if (usernameInput && username) {
+    usernameInput.value = username;
+  }
+} catch (error) {
+  console.warn("Khong doc duoc ten da luu:", error);
+}
+
+// XOA TRANG THAI CHO NUOC DI
+function clearPendingMove() {
+  pendingMoveIndex = null;
+
+  if (moveRequestTimeout) {
+    clearTimeout(moveRequestTimeout);
+    moveRequestTimeout = null;
+  }
+}
+
+// HIEU UNG AN TOAN
 function playEffect(name, message) {
   try {
     const effects = window.CaroEffects;
@@ -25,11 +49,11 @@ function playEffect(name, message) {
       effects[name](message);
     }
   } catch (error) {
-    console.warn("Không chạy được hiệu ứng:", name, error);
+    console.warn("Khong chay duoc hieu ung:", name, error);
   }
 }
 
-// ÂM THANH AN TOÀN
+// AM THANH AN TOAN
 function playSound(name) {
   try {
     const sound = window.CaroSound;
@@ -38,11 +62,11 @@ function playSound(name) {
       sound[name]();
     }
   } catch (error) {
-    console.warn("Không chạy được âm thanh:", name, error);
+    console.warn("Khong chay duoc am thanh:", name, error);
   }
 }
 
-// NÚT BẬT / TẮT ÂM THANH
+// NUT BAT / TAT AM THANH
 if (soundButton) {
   soundButton.onclick = () => {
     if (!window.CaroSound) return;
@@ -57,7 +81,7 @@ if (soundButton) {
   };
 }
 
-// ĐỒNG HỒ CÁT
+// DONG HO CAT DEM NGUOC
 function renderTimer() {
   const panel = document.getElementById("timerPanel");
   const owner = document.getElementById("timerOwner");
@@ -123,7 +147,6 @@ function renderTimer() {
       : "❌ LƯỢT CHỦ LIVE (X)";
   }
 
-  // DÙNG MỐC GIỜ CỦA SERVER ĐỂ ĐỒNG BỘ HAI ĐIỆN THOẠI
   const serverNow = Date.now() + serverClockOffset;
   const remainingMs = Math.max(0, deadline - serverNow);
   const seconds = Math.ceil(remainingMs / 1000);
@@ -163,7 +186,7 @@ function renderTimer() {
   }
 }
 
-// ĐÓNG KHUNG NHẬP TÊN
+// DONG KHUNG NHAP TEN
 function closeRegistration(message) {
   registered = true;
 
@@ -179,13 +202,17 @@ function closeRegistration(message) {
     if (description) description.style.display = "none";
   }
 
+  if (joinButton) {
+    joinButton.disabled = true;
+  }
+
   if (notice) {
     notice.textContent = message;
     notice.style.display = "block";
   }
 }
 
-// KIỂM TRA TRẠNG THÁI ĐĂNG KÝ
+// KIEM TRA TRANG THAI DANG KY
 function updateRegistration(s) {
   if (!username || !s) return;
 
@@ -213,7 +240,7 @@ function updateRegistration(s) {
   }
 }
 
-// KIỂM TRA NƯỚC ĐI VÀ KẾT QUẢ
+// KIEM TRA NUOC DI VA KET QUA
 function checkGameEffects(previous, current) {
   if (!previous || !current) return;
 
@@ -236,7 +263,54 @@ function checkGameEffects(previous, current) {
   }
 }
 
-// CẬP NHẬT GIAO DIỆN
+// GUI NUOC DI
+function sendViewerMove(index) {
+  if (!socket.connected) {
+    if (notice) {
+      notice.textContent = "Mất kết nối máy chủ. Đang thử kết nối lại...";
+    }
+    return;
+  }
+
+  if (pendingMoveIndex !== null) return;
+
+  if (
+    !state ||
+    state.winner ||
+    state.turn !== "O" ||
+    !state.activePlayer ||
+    !username ||
+    state.activePlayer.toLowerCase() !== username.toLowerCase() ||
+    state.board[index] !== null
+  ) {
+    return;
+  }
+
+  pendingMoveIndex = index;
+
+  // KHOA CAC O TRONG KHI CHO MAY CHU
+  if (boardEl) {
+    boardEl.querySelectorAll(".cell").forEach(cell => {
+      cell.disabled = true;
+    });
+  }
+
+  socket.emit("viewer:move", { index });
+
+  // CHO TOI DA 5 GIAY
+  moveRequestTimeout = setTimeout(() => {
+    clearPendingMove();
+
+    if (state) render(state);
+
+    if (notice) {
+      notice.textContent =
+        "Chưa nhận được xác nhận từ máy chủ. Hãy kiểm tra kết nối rồi thử lại.";
+    }
+  }, 5000);
+}
+
+// CAP NHAT GIAO DIEN
 function render(s) {
   if (!s || !Array.isArray(s.board)) return;
 
@@ -251,14 +325,22 @@ function render(s) {
     serverClockOffset = Number(s.serverTime) - Date.now();
   }
 
-  // TÊN PHÒNG
+  // NEU MAY CHU DA GHI NHAN NUOC DI
+  if (
+    pendingMoveIndex !== null &&
+    s.board[pendingMoveIndex] !== null
+  ) {
+    clearPendingMove();
+  }
+
+  // TEN PHONG
   const roomEl = document.getElementById("room");
 
   if (roomEl) {
     roomEl.textContent = `${s.roomName || "Caro Live"} · 15×15`;
   }
 
-  // TÊN VÀ ĐIỂM
+  // TEN VA DIEM
   const hostEl = document.getElementById("host");
   const hostScoreEl = document.getElementById("hostScore");
   const viewerScoreEl = document.getElementById("viewerScore");
@@ -269,7 +351,7 @@ function render(s) {
   if (viewerScoreEl) viewerScoreEl.textContent = s.scores?.viewers ?? 0;
   if (opponentEl) opponentEl.textContent = s.activePlayer || "Chưa chọn";
 
-  // TRẠNG THÁI LƯỢT CHƠI
+  // TRANG THAI LUOT CHOI
   if (statusEl) {
     if (s.winner) {
       statusEl.textContent = s.winner === "X"
@@ -277,17 +359,17 @@ function render(s) {
         : `🏆 ${s.activePlayer || "NGƯỜI CHƠI"} CHIẾN THẮNG!`;
     } else {
       statusEl.textContent = s.turn === "O"
-        ? `Đến lượt ${s.activePlayer || "người xem"} (quân xanh)`
-        : "Đến lượt chủ LIVE (quân vàng)";
+        ? `Đến lượt ${s.activePlayer || "người xem"} (quân O)`
+        : "Đến lượt chủ LIVE (quân X)";
     }
   }
 
   updateRegistration(s);
   renderTimer();
 
-  // VẼ BÀN CỜ
   if (!boardEl) return;
 
+  // VE LAI BAN CO
   boardEl.innerHTML = "";
 
   s.board.forEach((value, index) => {
@@ -311,45 +393,63 @@ function render(s) {
       stone.setAttribute("aria-hidden", "true");
 
       cell.appendChild(stone);
-      cell.classList.add("pop");
 
       cell.setAttribute(
         "aria-label",
         value === "X"
-          ? "Quân vàng của chủ LIVE"
-          : "Quân xanh của người chơi"
+          ? "Quân đỏ của chủ LIVE"
+          : "Quân đen của người chơi"
       );
     } else {
       cell.setAttribute("aria-label", `Ô cờ ${index + 1}`);
     }
 
+    const isMyTurn =
+      s.turn === "O" &&
+      !!s.activePlayer &&
+      !!username &&
+      s.activePlayer.toLowerCase() === username.toLowerCase();
+
     cell.disabled =
       !!value ||
       !!s.winner ||
-      s.turn !== "O" ||
-      !s.activePlayer ||
-      !username ||
-      s.activePlayer.toLowerCase() !== username.toLowerCase();
+      !isMyTurn ||
+      pendingMoveIndex !== null;
 
     cell.addEventListener("click", () => {
-      if (!cell.disabled) {
-        socket.emit("viewer:move", { index });
-      }
+      if (cell.disabled) return;
+      sendViewerMove(index);
     });
 
     boardEl.appendChild(cell);
   });
 }
 
-// CẬP NHẬT ĐỒNG HỒ MỖI 200 MILI GIÂY
+// CAP NHAT DONG HO MOI 200 MILI GIAY
 setInterval(() => {
   if (state) renderTimer();
 }, 200);
 
-// NHẬN TRẠNG THÁI
+// NHAN TRANG THAI
 socket.on("state", render);
 
-// THÔNG BÁO TỪ MÁY CHỦ
+// MAY CHU XAC NHAN NUOC DI
+socket.on("viewer:move:accepted", () => {
+  clearPendingMove();
+});
+
+// MAY CHU TU CHOI NUOC DI
+socket.on("viewer:move:rejected", message => {
+  clearPendingMove();
+
+  if (notice) {
+    notice.textContent = message || "Nước đi chưa được chấp nhận.";
+  }
+
+  if (state) render(state);
+});
+
+// THONG BAO TU MAY CHU
 socket.on("notice", message => {
   if (!notice) return;
 
@@ -373,8 +473,10 @@ socket.on("notice", message => {
   }
 });
 
-// KẾT NỐI LẠI
+// KET NOI LAI
 socket.on("connect", () => {
+  clearPendingMove();
+
   if (statusEl && !state) {
     statusEl.textContent = "Đã kết nối máy chủ, đang tải bàn cờ…";
   }
@@ -384,9 +486,18 @@ socket.on("connect", () => {
   }
 });
 
+// MAT KET NOI
 socket.on("disconnect", () => {
+  clearPendingMove();
+
   if (statusEl) {
     statusEl.textContent = "Mất kết nối. Đang kết nối lại…";
+  }
+
+  if (boardEl) {
+    boardEl.querySelectorAll(".cell").forEach(cell => {
+      cell.disabled = true;
+    });
   }
 });
 
@@ -396,13 +507,13 @@ socket.on("connect_error", () => {
   }
 });
 
-// ĐĂNG KÝ NGƯỜI CHƠI
+// DANG KY NGUOI CHOI
 if (joinButton) {
   joinButton.onclick = () => {
     if (registered) return;
 
     username = usernameInput
-      ? usernameInput.value.trim().replace(/^@/, "")
+      ? usernameInput.value.trim().replace(/^@+/, "")
       : "";
 
     if (!username) {
@@ -412,8 +523,25 @@ if (joinButton) {
       return;
     }
 
+    try {
+      localStorage.setItem("caroUsername", username);
+    } catch (error) {
+      console.warn("Khong luu duoc ten:", error);
+    }
+
     joinButton.disabled = true;
     joinButton.textContent = "Đang gửi…";
+
+    if (!socket.connected) {
+      joinButton.disabled = false;
+      joinButton.textContent = "Vào phòng";
+
+      if (notice) {
+        notice.textContent = "Chưa kết nối được máy chủ. Hãy thử lại.";
+      }
+
+      return;
+    }
 
     socket.emit("viewer:register", { username });
   };
