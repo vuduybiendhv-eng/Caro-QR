@@ -4,7 +4,7 @@ const boardEl = document.getElementById("board");
 
 let state = null;
 
-const pin = () => document.getElementById("pin").value;
+const pin = () => document.getElementById("pin")?.value || "";
 
 async function post(path, body = {}) {
   try {
@@ -41,34 +41,54 @@ function createButton(label, action, className = "") {
 }
 
 function render(s) {
+  if (!s || !Array.isArray(s.board) || !boardEl) return;
+
   state = s;
 
   const status = document.getElementById("status");
-  status.textContent = s.winner
-    ? `Kết quả: ${s.winner} thắng`
-    : `Lượt: ${s.turn}`;
 
-  // BÀN CỜ
+  if (status) {
+    status.textContent = s.winner
+      ? `Kết quả: ${s.winner} thắng`
+      : `Lượt: ${s.turn}`;
+  }
+
+  // VE BAN CO
   boardEl.innerHTML = "";
 
   s.board.forEach((value, index) => {
     const cell = document.createElement("button");
 
     cell.type = "button";
-    cell.className = "cell " + (value || "");
-    cell.textContent = value || "·";
+    cell.className = "cell";
 
-    cell.disabled =
-      !!value || !!s.winner || s.turn !== "X";
+    if (value === "X") {
+      cell.classList.add("X", "piece-x");
+    } else if (value === "O") {
+      cell.classList.add("O", "piece-o");
+    }
 
-    cell.addEventListener("click", () => {
-      post("/api/admin/move", { index });
+    if (value) {
+      const stone = document.createElement("span");
+      stone.className = "stone";
+      stone.setAttribute("aria-hidden", "true");
+      cell.appendChild(stone);
+    }
+
+    cell.disabled = !!value || !!s.winner || s.turn !== "X";
+
+    cell.addEventListener("click", async () => {
+      if (!state || state.board[index] || state.turn !== "X" || state.winner) {
+        return;
+      }
+
+      await post("/api/admin/move", { index });
     });
 
     boardEl.appendChild(cell);
   });
 
-  // DANH SÁCH ĐĂNG KÝ CHỜ DUYỆT
+  // DANH SACH CHO DUYET
   const pending = document.getElementById("pendingQueue");
 
   if (pending) {
@@ -111,39 +131,44 @@ function render(s) {
     });
   }
 
-  // DANH SÁCH ĐÃ ĐƯỢC DUYỆT
+  // DANH SACH DA DUOC DUYET
   const queue = document.getElementById("queue");
-  queue.innerHTML = "";
 
-  if (!s.queue.length) {
-    queue.textContent = "Chưa có người chơi được duyệt.";
+  if (queue) {
+    queue.innerHTML = "";
+
+    const players = s.queue || [];
+
+    if (!players.length) {
+      queue.textContent = "Chưa có người chơi được duyệt.";
+    }
+
+    players.forEach(player => {
+      const row = document.createElement("div");
+      row.className = "queueitem";
+
+      const label = document.createElement("span");
+      label.textContent = "@" + player.username;
+
+      const button = createButton("Chọn đấu", async () => {
+        await post("/api/admin/select", {
+          username: player.username
+        });
+      });
+
+      row.append(label, button);
+      queue.appendChild(row);
+    });
   }
 
-  s.queue.forEach(player => {
-    const row = document.createElement("div");
-    row.className = "queueitem";
-
-    const label = document.createElement("span");
-    label.textContent = "@" + player.username;
-
-    const button = createButton("Chọn đấu", () => {
-      post("/api/admin/select", {
-        username: player.username
-      });
-    });
-
-    row.append(label, button);
-    queue.appendChild(row);
-  });
-
-  // ĐIỂM SỐ
+  // DIEM SO
   const hostScore = document.getElementById("hostScore");
   const viewerScore = document.getElementById("viewerScore");
 
-  if (hostScore) hostScore.textContent = s.scores.host;
-  if (viewerScore) viewerScore.textContent = s.scores.viewers;
+  if (hostScore) hostScore.textContent = s.scores?.host ?? 0;
+  if (viewerScore) viewerScore.textContent = s.scores?.viewers ?? 0;
 
-  // NGƯỜI ĐANG ĐẤU
+  // DOI THU
   const opponent = document.getElementById("opponent");
 
   if (opponent) {
@@ -164,22 +189,19 @@ socket.on("disconnect", () => {
   if (status) status.textContent = "Mất kết nối máy chủ...";
 });
 
-// VÁN MỚI
-document.getElementById("next").onclick = async () => {
+document.getElementById("next")?.addEventListener("click", async () => {
   if (!confirm("Kết thúc ván và bắt đầu ván mới?")) return;
   await post("/api/admin/next");
-};
+});
 
-// RESET ĐIỂM
-document.getElementById("reset").onclick = async () => {
+document.getElementById("reset")?.addEventListener("click", async () => {
   if (!confirm("Bạn muốn xóa toàn bộ điểm số?")) return;
   await post("/api/admin/reset-score");
-};
+});
 
-// THÊM NGƯỜI CHƠI THỦ CÔNG (GIỮ CHỨC NĂNG CŨ)
-document.getElementById("addPlayer").onclick = async () => {
+document.getElementById("addPlayer")?.addEventListener("click", async () => {
   const input = document.getElementById("giftUser");
-  const username = input.value.trim();
+  const username = input?.value.trim();
 
   if (!username) {
     alert("Nhập tên TikTok người chơi.");
@@ -191,5 +213,5 @@ document.getElementById("addPlayer").onclick = async () => {
     giftName: "Đã xác nhận thủ công"
   });
 
-  if (result.ok) input.value = "";
-};
+  if (result.ok && input) input.value = "";
+});
