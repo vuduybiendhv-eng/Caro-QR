@@ -9,7 +9,9 @@ const crypto = require("crypto");
 
 const app = express();
 const server = http.createServer(app);
-const io = new Server(server, { cors: { origin: false } });
+const io = new Server(server, {
+  cors: { origin: false }
+});
 
 const PORT = Number(process.env.PORT || 3000);
 const ROOM_NAME = process.env.ROOM_NAME || "Caro Live";
@@ -19,28 +21,36 @@ const GIFT_TOKEN = process.env.GIFT_WEBHOOK_TOKEN || "CHANGE_ME";
 const BASE_URL = (process.env.PUBLIC_BASE_URL || "").replace(/\/$/, "");
 
 app.set("trust proxy", process.env.TRUST_PROXY === "true");
+
 app.use(helmet({ contentSecurityPolicy: false }));
 app.use(express.json({ limit: "32kb" }));
 app.use(express.static(path.join(__dirname, "public")));
 
+// TRANG NGƯỜI CHƠI
 app.get("/play", (_req, res) => {
   res.sendFile(path.join(__dirname, "public", "index.html"));
 });
 
+// TRẠNG THÁI TRÒ CHƠI
 let board = Array(225).fill(null);
 let turn = "X";
 let winner = null;
 let activePlayer = null;
 
-// Người đã được duyệt, đang chờ chủ LIVE chọn đấu
+// Người đã được duyệt, chờ đấu
 let queue = [];
 
-// Người mới đăng ký, đang chờ chủ LIVE duyệt
+// Người đăng ký, chờ duyệt
 let pendingQueue = [];
 
-let scores = { host: 0, viewers: 0 };
+let scores = {
+  host: 0,
+  viewers: 0
+};
+
 let lastMoves = [];
 
+// TẠO TRẠNG THÁI CÔNG KHAI
 function publicState() {
   return {
     roomName: ROOM_NAME,
@@ -49,21 +59,29 @@ function publicState() {
     turn,
     winner,
     activePlayer,
+
     queue: queue.map(({ username, gift, at }) => ({
-      username, gift, at
+      username,
+      gift,
+      at
     })),
+
     pendingQueue: pendingQueue.map(({ username, at }) => ({
-      username, at
+      username,
+      at
     })),
+
     scores,
     lastMoves
   };
 }
 
+// GỬI TRẠNG THÁI ĐẾN HAI ĐIỆN THOẠI
 function broadcast() {
   io.emit("state", publicState());
 }
 
+// LÀM SẠCH TÊN TIKTOK
 function cleanUsername(value) {
   return String(value || "")
     .trim()
@@ -72,19 +90,31 @@ function cleanUsername(value) {
     .slice(0, 40);
 }
 
+// KIỂM TRA TÊN ĐÃ ĐƯỢC SỬ DỤNG CHƯA
 function existsAnywhere(username) {
   const key = username.toLowerCase();
 
-  return pendingQueue.some(p => p.username.toLowerCase() === key) ||
+  return (
+    pendingQueue.some(p => p.username.toLowerCase() === key) ||
     queue.some(p => p.username.toLowerCase() === key) ||
-    (activePlayer && activePlayer.toLowerCase() === key);
+    (
+      activePlayer &&
+      activePlayer.toLowerCase() === key
+    )
+  );
 }
 
+// KIỂM TRA THẮNG
 function checkWin(b, idx, mark) {
   const r = Math.floor(idx / 15);
   const c = idx % 15;
 
-  for (const [dr, dc] of [[0,1], [1,0], [1,1], [1,-1]]) {
+  for (const [dr, dc] of [
+    [0, 1],
+    [1, 0],
+    [1, 1],
+    [1, -1]
+  ]) {
     let count = 1;
 
     for (const sign of [-1, 1]) {
@@ -92,8 +122,10 @@ function checkWin(b, idx, mark) {
       let cc = c + dc * sign;
 
       while (
-        rr >= 0 && rr < 15 &&
-        cc >= 0 && cc < 15 &&
+        rr >= 0 &&
+        rr < 15 &&
+        cc >= 0 &&
+        cc < 15 &&
         b[rr * 15 + cc] === mark
       ) {
         count++;
@@ -108,6 +140,7 @@ function checkWin(b, idx, mark) {
   return false;
 }
 
+// KIỂM TRA ADMIN PIN
 function authAdmin(req, res, next) {
   const pin = req.get("x-admin-pin") || req.body?.pin;
 
@@ -124,6 +157,7 @@ function authAdmin(req, res, next) {
   next();
 }
 
+// THÊM NGƯỜI TẶNG QUÀ ĐÃ XÁC NHẬN
 function addGift({ username, giftName }) {
   const clean = cleanUsername(username);
 
@@ -141,16 +175,25 @@ function addGift({ username, giftName }) {
   return true;
 }
 
+// CẤU HÌNH PHÒNG
 app.get("/api/config", (_req, res) => {
-  res.json({ roomName: ROOM_NAME, host: HOST_TIKTOK });
+  res.json({
+    roomName: ROOM_NAME,
+    host: HOST_TIKTOK
+  });
 });
 
+// LẤY TRẠNG THÁI
 app.get("/api/state", (_req, res) => {
   res.json(publicState());
 });
 
+// TẠO MÃ QR
 app.get("/api/qr", async (req, res) => {
-  const base = BASE_URL || `${req.protocol}://${req.get("host")}`;
+  const base =
+    BASE_URL ||
+    `${req.protocol}://${req.get("host")}`;
+
   const target = `${base}/play`;
 
   try {
@@ -161,14 +204,16 @@ app.get("/api/qr", async (req, res) => {
     });
 
     res.type("png").send(png);
-  } catch {
+  } catch (error) {
+    console.error("QR error:", error);
     res.status(500).send("QR generation failed");
   }
 });
 
-// Nhận sự kiện quà tặng đã xác minh từ hệ thống bên ngoài
+// NHẬN SỰ KIỆN QUÀ TẶNG ĐÃ XÁC MINH
 app.post("/api/gifts", (req, res) => {
   const token = req.get("x-gift-token");
+
   const supplied = Buffer.from(String(token || ""));
   const expected = Buffer.from(String(GIFT_TOKEN));
 
@@ -192,12 +237,14 @@ app.post("/api/gifts", (req, res) => {
   }
 
   addGift({ username, giftName });
+
   res.json({ ok: true });
 });
 
-// Tương thích với cách thêm người chơi thủ công cũ
+// CHỦ LIVE THÊM NGƯỜI CHƠI THỦ CÔNG
 app.post("/api/admin/add-player", authAdmin, (req, res) => {
   const username = cleanUsername(req.body.username);
+
   const giftName = String(
     req.body.giftName || "Quà TikTok đã xác nhận"
   ).slice(0, 80);
@@ -217,6 +264,7 @@ app.post("/api/admin/add-player", authAdmin, (req, res) => {
   }
 
   broadcast();
+
   res.json({ ok: true });
 });
 
@@ -243,6 +291,7 @@ app.post("/api/admin/approve-player", authAdmin, (req, res) => {
   });
 
   broadcast();
+
   res.json({ ok: true });
 });
 
@@ -263,12 +312,19 @@ app.post("/api/admin/reject-player", authAdmin, (req, res) => {
   pendingQueue = pendingQueue.filter(p => p !== found);
 
   broadcast();
+
   res.json({ ok: true });
 });
 
 // CHỦ LIVE CHỌN NGƯỜI ĐÃ ĐƯỢC DUYỆT
 app.post("/api/admin/select", authAdmin, (req, res) => {
   const username = cleanUsername(req.body.username);
+
+  if (activePlayer) {
+    return res.status(409).json({
+      error: "Đang có người chơi trong ván."
+    });
+  }
 
   const found = queue.find(
     p => p.username.toLowerCase() === username.toLowerCase()
@@ -280,21 +336,19 @@ app.post("/api/admin/select", authAdmin, (req, res) => {
     });
   }
 
-  if (activePlayer) {
-    return res.status(409).json({
-      error: "Đang có người chơi trong ván."
-    });
-  }
-
   activePlayer = found.username;
+
+  // Đưa người chơi ra khỏi hàng chờ
   queue = queue.filter(p => p !== found);
 
+  // Bắt đầu ván mới
   board = Array(225).fill(null);
   turn = "X";
   winner = null;
   lastMoves = [];
 
   broadcast();
+
   res.json({ ok: true });
 });
 
@@ -306,7 +360,7 @@ app.post("/api/admin/move", authAdmin, (req, res) => {
     !Number.isInteger(idx) ||
     idx < 0 ||
     idx >= 225 ||
-    board[idx] ||
+    board[idx] !== null ||
     winner ||
     turn !== "X"
   ) {
@@ -326,10 +380,11 @@ app.post("/api/admin/move", authAdmin, (req, res) => {
   }
 
   broadcast();
+
   res.json({ ok: true });
 });
 
-// VÁN MỚI
+// KẾT THÚC VÁN / VÁN MỚI
 app.post("/api/admin/next", authAdmin, (_req, res) => {
   activePlayer = null;
   board = Array(225).fill(null);
@@ -338,18 +393,23 @@ app.post("/api/admin/next", authAdmin, (_req, res) => {
   lastMoves = [];
 
   broadcast();
+
   res.json({ ok: true });
 });
 
 // RESET ĐIỂM
 app.post("/api/admin/reset-score", authAdmin, (_req, res) => {
-  scores = { host: 0, viewers: 0 };
+  scores = {
+    host: 0,
+    viewers: 0
+  };
 
   broadcast();
+
   res.json({ ok: true });
 });
 
-// KHÁCH TỰ ĐĂNG KÝ VÀ CHỜ DUYỆT
+// NGƯỜI XEM TỰ ĐĂNG KÝ
 function registerViewer(socket, username) {
   const clean = cleanUsername(username);
 
@@ -369,16 +429,31 @@ function registerViewer(socket, username) {
 
     if (pending) {
       socket.data.username = clean;
-      socket.emit("notice", "Yêu cầu đã gửi. Vui lòng chờ chủ LIVE duyệt.");
       socket.join("viewers");
+
+      socket.emit(
+        "notice",
+        "Yêu cầu đã gửi. Vui lòng chờ chủ LIVE duyệt."
+      );
+
       return;
     }
 
-    if (approved || (activePlayer &&
-        activePlayer.toLowerCase() === clean.toLowerCase())) {
+    if (
+      approved ||
+      (
+        activePlayer &&
+        activePlayer.toLowerCase() === clean.toLowerCase()
+      )
+    ) {
       socket.data.username = clean;
-      socket.emit("notice", "Bạn đã được duyệt. Hãy chờ chủ LIVE chọn đấu.");
       socket.join("viewers");
+
+      socket.emit(
+        "notice",
+        "Bạn đã được duyệt. Hãy chờ chủ LIVE chọn đấu."
+      );
+
       return;
     }
 
@@ -402,22 +477,25 @@ function registerViewer(socket, username) {
   );
 }
 
+// KẾT NỐI NGƯỜI CHƠI
 io.on("connection", socket => {
   socket.emit("state", publicState());
 
-  // Giữ tên sự kiện cũ để tương thích client.js hiện tại
+  // TƯƠNG THÍCH SỰ KIỆN CŨ
   socket.on("viewer:join", ({ username } = {}) => {
     registerViewer(socket, username);
   });
 
-  // Hỗ trợ tên sự kiện đăng ký mới
+  // SỰ KIỆN ĐĂNG KÝ MỚI
   socket.on("viewer:register", ({ username } = {}) => {
     registerViewer(socket, username);
   });
 
+  // NGƯỜI XEM ĐÁNH QUÂN O
   socket.on("viewer:move", ({ index } = {}) => {
     const username = socket.data.username;
 
+    // Chỉ đúng người đang được chọn mới được đánh
     if (
       !username ||
       !activePlayer ||
@@ -429,18 +507,14 @@ io.on("connection", socket => {
       );
     }
 
-    const approved = queue.some(
-      p => p.username.toLowerCase() === username.toLowerCase()
-    );
-
     const idx = Number(index);
 
+    // Kiểm tra ô, lượt đánh và trạng thái ván
     if (
-      !approved ||
       !Number.isInteger(idx) ||
       idx < 0 ||
       idx >= 225 ||
-      board[idx] ||
+      board[idx] !== null ||
       winner ||
       turn !== "O"
     ) {
@@ -450,6 +524,7 @@ io.on("connection", socket => {
       );
     }
 
+    // ĐÁNH QUÂN O
     board[idx] = "O";
     lastMoves.push(idx);
 
@@ -464,7 +539,7 @@ io.on("connection", socket => {
   });
 });
 
+// KHỞI ĐỘNG MÁY CHỦ
 server.listen(PORT, "0.0.0.0", () => {
   console.log(`Caro LIVE listening on :${PORT}`);
 });
-      
