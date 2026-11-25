@@ -768,3 +768,59 @@ button {
 button:active {
   transform: scale(.98);
 }
+
+/* COT TRUNG TAM CHUA BAN CO VA QR */
+.board-column {
+  min-width: 0;
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 14px;
+}
+
+/* BAN CO KHONG BI QR CHE */
+.board-column .board-panel {
+  width: 100%;
+  min-width: 0;
+}
+
+/* QR NAM RIENG BEN DUOI */
+.board-column .qr-card {
+  width: min(230px, 100%);
+  margin: 0 auto 16px;
+  padding: 12px;
+  text-align: center;
+}
+
+.board-column .qr-card img {
+  display: block;
+  width: 150px !important;
+  height: 150px !important;
+  max-width: 100%;
+  margin: 10px auto;
+  object-fit: contain;
+}
+
+/* DIEN THOAI */
+@media (max-width: 650px) {
+  .game-area {
+    grid-template-columns: 66px minmax(0, 1fr);
+  }
+
+  .board-column {
+    grid-column: 2;
+    grid-row: 1;
+  }
+
+  .game-sidebar {
+    grid-column: 1 / -1;
+    grid-row: 2;
+  }
+}
+
+@media (max-width: 390px) {
+  .game-area {
+    grid-template-columns: 52px minmax(0, 1fr);
+  }
+}
