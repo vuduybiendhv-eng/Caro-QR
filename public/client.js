@@ -6,13 +6,20 @@ const notice = document.getElementById("notice");
 const statusEl = document.getElementById("status");
 const soundButton = document.getElementById("soundToggle");
 
+const joinSection = document.querySelector(".caro-layout > .join");
+const joinButton = document.getElementById("join");
+const usernameInput = document.getElementById("username");
+
 let state = null;
 let username = "";
+let registered = false;
 let firstState = true;
 
-// NUT AM THANH
+// AM THANH
 if (soundButton) {
   soundButton.onclick = () => {
+    if (!window.CaroSound) return;
+
     const on = CaroSound.toggle();
 
     soundButton.textContent = on
@@ -23,6 +30,56 @@ if (soundButton) {
   };
 }
 
+// DONG KHUNG NHAP TEN, GIU LAI THONG BAO
+function closeRegistration(message) {
+  registered = true;
+
+  if (joinSection) {
+    joinSection.classList.add("registration-done");
+
+    const label = joinSection.querySelector("label");
+    const row = joinSection.querySelector(".joinrow");
+    const description = joinSection.querySelector("p");
+
+    if (label) label.style.display = "none";
+    if (row) row.style.display = "none";
+    if (description) description.style.display = "none";
+  }
+
+  if (notice) {
+    notice.textContent = message;
+    notice.style.display = "block";
+  }
+}
+
+// KIEM TRA TRANG THAI DANG KY
+function updateRegistration(s) {
+  if (!username || !s) return;
+
+  const key = username.toLowerCase();
+
+  const pending = Array.isArray(s.pendingQueue) &&
+    s.pendingQueue.some(p =>
+      String(p.username).toLowerCase() === key
+    );
+
+  const approved = Array.isArray(s.queue) &&
+    s.queue.some(p =>
+      String(p.username).toLowerCase() === key
+    );
+
+  const playing = s.activePlayer &&
+    s.activePlayer.toLowerCase() === key;
+
+  if (pending) {
+    closeRegistration("📨 Đã gửi yêu cầu! Vui lòng chờ chủ LIVE duyệt.");
+  } else if (playing) {
+    closeRegistration("🎮 Bạn đang tham gia trận đấu!");
+  } else if (approved) {
+    closeRegistration("✅ Bạn đã được duyệt! Hãy chờ chủ LIVE chọn đấu.");
+  }
+}
+
 // CAP NHAT GIAO DIEN
 function render(s) {
   if (!s || !Array.isArray(s.board)) return;
@@ -31,7 +88,7 @@ function render(s) {
     const oldCount = state.board.filter(Boolean).length;
     const newCount = s.board.filter(Boolean).length;
 
-    if (newCount > oldCount) {
+    if (newCount > oldCount && window.CaroSound) {
       CaroSound.move();
 
       if (window.CaroEffects) {
@@ -39,8 +96,7 @@ function render(s) {
       }
     }
 
-    // NGUOI XEM LA QUAN O
-    if (!state.winner && s.winner) {
+    if (!state.winner && s.winner && window.CaroSound) {
       CaroSound.win();
 
       if (window.CaroEffects) {
@@ -56,7 +112,7 @@ function render(s) {
   firstState = false;
   state = s;
 
-  // TEN PHONG NEU TRANG CO PHAN TU ROOM
+  // TEN PHONG
   const roomEl = document.getElementById("room");
 
   if (roomEl) {
@@ -69,21 +125,10 @@ function render(s) {
   const viewerScoreEl = document.getElementById("viewerScore");
   const opponentEl = document.getElementById("opponent");
 
-  if (hostEl) {
-    hostEl.textContent = s.host || "@mbbb1118";
-  }
-
-  if (hostScoreEl) {
-    hostScoreEl.textContent = s.scores?.host ?? 0;
-  }
-
-  if (viewerScoreEl) {
-    viewerScoreEl.textContent = s.scores?.viewers ?? 0;
-  }
-
-  if (opponentEl) {
-    opponentEl.textContent = s.activePlayer || "Chưa chọn";
-  }
+  if (hostEl) hostEl.textContent = s.host || "@mbbb1118";
+  if (hostScoreEl) hostScoreEl.textContent = s.scores?.host ?? 0;
+  if (viewerScoreEl) viewerScoreEl.textContent = s.scores?.viewers ?? 0;
+  if (opponentEl) opponentEl.textContent = s.activePlayer || "Chưa chọn";
 
   // TRANG THAI LUOT CHOI
   if (statusEl) {
@@ -98,7 +143,10 @@ function render(s) {
     }
   }
 
-  // TAO 225 O CO
+  // CAP NHAT TRANG THAI DANG KY
+  updateRegistration(s);
+
+  // VE BAN CO
   if (!boardEl) return;
 
   boardEl.innerHTML = "";
@@ -108,11 +156,10 @@ function render(s) {
 
     cell.type = "button";
     cell.className = "cell " + (value || "");
-    cell.textContent = value || "";
+    cell.textContent = value || "·";
 
     if (value) {
       cell.classList.add("pop");
-
       cell.setAttribute(
         "aria-label",
         value === "X" ? "Quân trắng" : "Quân đen"
@@ -129,9 +176,7 @@ function render(s) {
 
     cell.addEventListener("click", () => {
       if (!cell.disabled) {
-        socket.emit("viewer:move", {
-          index
-        });
+        socket.emit("viewer:move", { index });
       }
     });
 
@@ -142,14 +187,34 @@ function render(s) {
 // NHAN TRANG THAI
 socket.on("state", render);
 
-// THONG BAO
+// THONG BAO TU MAY CHU
 socket.on("notice", message => {
-  if (notice) {
-    notice.textContent = message;
+  if (!notice) return;
+
+  notice.textContent = message;
+
+  if (
+    message.includes("Đã gửi yêu cầu") ||
+    message.includes("Yêu cầu đã gửi")
+  ) {
+    closeRegistration(message);
+  } else if (
+    message.includes("đã được duyệt") ||
+    message.includes("đang tham gia")
+  ) {
+    closeRegistration(message);
+  } else if (
+    message.includes("Vui lòng nhập") ||
+    message.includes("Tên này")
+  ) {
+    if (joinButton) {
+      joinButton.disabled = false;
+      joinButton.textContent = "Vào phòng";
+    }
   }
 });
 
-// KET NOI MAY CHU
+// KET NOI
 socket.on("connect", () => {
   if (statusEl && !state) {
     statusEl.textContent = "Đã kết nối máy chủ, đang tải bàn cờ…";
@@ -168,25 +233,25 @@ socket.on("connect_error", () => {
   }
 });
 
-// NGUOI XEM DANG KY
-const joinButton = document.getElementById("join");
-const usernameInput = document.getElementById("username");
-
+// DANG KY NGUOI CHOI
 if (joinButton) {
   joinButton.onclick = () => {
+    if (registered) return;
+
     username = usernameInput
-      ? usernameInput.value.trim()
+      ? usernameInput.value.trim().replace(/^@/, "")
       : "";
 
     if (!username) {
       if (notice) {
-        notice.textContent = "Bạn nhập tên TikTok trước nhé.";
+        notice.textContent = "Bạn hãy nhập tên TikTok trước nhé.";
       }
       return;
     }
 
-    socket.emit("viewer:join", {
-      username
-    });
+    joinButton.disabled = true;
+    joinButton.textContent = "Đang gửi…";
+
+    socket.emit("viewer:register", { username });
   };
 }
