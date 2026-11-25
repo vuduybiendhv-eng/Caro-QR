@@ -14,8 +14,9 @@ let state = null;
 let username = "";
 let registered = false;
 let firstState = true;
+let serverClockOffset = 0;
 
-// GỌI HIỆU ỨNG AN TOÀN
+// HIỆU ỨNG AN TOÀN
 function playEffect(name, message) {
   try {
     const effects = window.CaroEffects;
@@ -28,7 +29,7 @@ function playEffect(name, message) {
   }
 }
 
-// GỌI ÂM THANH AN TOÀN
+// ÂM THANH AN TOÀN
 function playSound(name) {
   try {
     const sound = window.CaroSound;
@@ -56,7 +57,7 @@ if (soundButton) {
   };
 }
 
-// ĐỒNG HỒ CÁT 30 GIÂY
+// ĐỒNG HỒ CÁT
 function renderTimer() {
   const panel = document.getElementById("timerPanel");
   const owner = document.getElementById("timerOwner");
@@ -79,7 +80,6 @@ function renderTimer() {
     "timer-finished"
   );
 
-  // Chưa bắt đầu hoặc ván đã kết thúc
   if (s.winner || !Number.isFinite(deadline) || deadline <= 0) {
     panel.classList.add("timer-idle");
 
@@ -123,10 +123,12 @@ function renderTimer() {
       : "❌ LƯỢT CHỦ LIVE (X)";
   }
 
-  // Tính thời gian từ thời hạn do server gửi
-  const remainingMs = Math.max(0, deadline - Date.now());
+  // DÙNG MỐC GIỜ CỦA SERVER ĐỂ ĐỒNG BỘ HAI ĐIỆN THOẠI
+  const serverNow = Date.now() + serverClockOffset;
+  const remainingMs = Math.max(0, deadline - serverNow);
   const seconds = Math.ceil(remainingMs / 1000);
-  const progress = Math.max(0, Math.min(1, remainingMs / 30000));
+  const totalTime = (Number(s.turnTime) || 30) * 1000;
+  const progress = Math.max(0, Math.min(1, remainingMs / totalTime));
 
   number.textContent = String(seconds);
 
@@ -145,15 +147,9 @@ function renderTimer() {
     }
   }
 
-  if (seconds <= 5) {
-    panel.classList.add("timer-warning");
-  }
+  if (seconds <= 5) panel.classList.add("timer-warning");
+  if (seconds <= 0) panel.classList.add("timer-finished");
 
-  if (seconds <= 0) {
-    panel.classList.add("timer-finished");
-  }
-
-  // Cát chuyển động đồng bộ theo thời gian còn lại
   if (topSand) {
     topSand.style.transform = `scaleY(${progress})`;
   }
@@ -250,6 +246,10 @@ function render(s) {
 
   firstState = false;
   state = s;
+
+  if (Number.isFinite(Number(s.serverTime))) {
+    serverClockOffset = Number(s.serverTime) - Date.now();
+  }
 
   // TÊN PHÒNG
   const roomEl = document.getElementById("room");
@@ -373,7 +373,7 @@ socket.on("notice", message => {
   }
 });
 
-// KẾT NỐI
+// KẾT NỐI LẠI
 socket.on("connect", () => {
   if (statusEl && !state) {
     statusEl.textContent = "Đã kết nối máy chủ, đang tải bàn cờ…";
