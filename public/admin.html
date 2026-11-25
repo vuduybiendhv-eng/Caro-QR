@@ -5,7 +5,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <title>Điều khiển Caro Live</title>
-  <link rel="stylesheet" href="/style.css?v=3">
+  <link rel="stylesheet" href="/style.css?v=4">
 </head>
 
 <body>
@@ -59,6 +59,68 @@
     <section>
       <h2>Bàn cờ chủ LIVE</h2>
       <p id="status">Chủ LIVE đánh quân X</p>
+
+      <!-- ĐỒNG HỒ CÁT ĐẾM NGƯỢC 30 GIÂY -->
+      <section class="timer-section timer-idle" id="timerPanel">
+        <div class="timer-heading" id="timerOwner">
+          ⏳ ĐANG CHỜ LƯỢT CHƠI
+        </div>
+
+        <div class="hourglass-wrap">
+          <svg class="hourglass" id="hourglass" viewBox="0 0 120 180">
+            <defs>
+              <linearGradient id="glassGradient" x1="0" y1="0" x2="1" y2="1">
+                <stop offset="0%" stop-color="#fff8dc"/>
+                <stop offset="100%" stop-color="#d8b978"/>
+              </linearGradient>
+
+              <clipPath id="topSandClip">
+                <path d="M30 20 H90 C90 55 78 68 60 88 C42 68 30 55 30 20Z"/>
+              </clipPath>
+
+              <clipPath id="bottomSandClip">
+                <path d="M60 92 C78 112 90 125 90 160 H30 C30 125 42 112 60 92Z"/>
+              </clipPath>
+            </defs>
+
+            <path
+              class="glass-outline"
+              d="M25 12 H95 M25 168 H95
+                 M30 20 C30 55 42 68 60 90
+                 C78 112 90 125 90 160
+                 M90 20 C90 55 78 68 60 90
+                 C42 112 30 125 30 160"
+              fill="none"
+              stroke="url(#glassGradient)"
+              stroke-width="5"
+              stroke-linecap="round"
+            />
+
+            <g clip-path="url(#topSandClip)">
+              <path id="topSand" class="sand-top" d="M30 25 H90 V88 H30Z"/>
+            </g>
+
+            <g clip-path="url(#bottomSandClip)">
+              <path id="bottomSand" class="sand-bottom" d="M30 160 H90 V160 H30Z"/>
+            </g>
+
+            <path
+              id="sandStream"
+              class="sand-stream"
+              d="M60 80 L60 105"
+              fill="none"
+              stroke-width="3"
+            />
+          </svg>
+        </div>
+
+        <div class="timer-number" id="timerNumber">30</div>
+        <div class="timer-unit">GIÂY CÒN LẠI</div>
+        <div class="timer-message" id="timerMessage">
+          Chờ bắt đầu trận đấu
+        </div>
+      </section>
+
       <div class="board" id="board"></div>
 
       <div class="actions">
@@ -76,9 +138,9 @@
   </main>
 
   <script src="/socket.io/socket.io.js"></script>
-  <script src="/sound.js?v=3"></script>
-  <script src="/music.js?v=3"></script>
-  <script src="/effects.js?v=3"></script>
-  <script src="/admin.js?v=4"></script>
+  <script src="/sound.js?v=4"></script>
+  <script src="/music.js?v=4"></script>
+  <script src="/effects.js?v=4"></script>
+  <script src="/admin.js?v=5"></script>
 </body>
 </html>
