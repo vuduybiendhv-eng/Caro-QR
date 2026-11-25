@@ -7,16 +7,15 @@
 
   let w = 0;
   let h = 0;
-  let leaves = [];
+  let flowers = [];
   let particles = [];
   let raf = 0;
   let resultTimer = null;
   let removeTimer = null;
 
-  const rand = (min, max) =>
-    Math.random() * (max - min) + min;
+  const rand = (min, max) => Math.random() * (max - min) + min;
 
-  // CSS HIỆU UNG
+  // GIAO DIEN HIEU UNG
   const style = document.createElement("style");
 
   style.textContent = `
@@ -144,43 +143,84 @@
     ctx.setTransform(d, 0, 0, d, 0, 0);
   }
 
-  // LA VANG
-  function makeLeaf() {
+  // TAO HOA MAI VA HOA DAO
+  function makeFlower() {
     return {
       x: rand(-20, w + 20),
       y: rand(-h, 0),
-      size: rand(7, 15),
-      speed: rand(.35, 1.15),
-      drift: rand(-.45, .45),
+      size: rand(6, 11),
+      speed: rand(.35, .9),
+      drift: rand(-.35, .35),
       rot: rand(0, Math.PI * 2),
-      spin: rand(-.025, .025),
-      hue: rand(28, 48)
+      spin: rand(-.018, .018),
+      sway: rand(0, Math.PI * 2),
+      swaySpeed: rand(.008, .018),
+      type: Math.random() < .5 ? "mai" : "dao"
     };
   }
 
-  function drawLeaf(leaf) {
-    ctx.save();
-    ctx.translate(leaf.x, leaf.y);
-    ctx.rotate(leaf.rot);
-
-    ctx.fillStyle =
-      `hsla(${leaf.hue},75%,${rand(42,58)}%,.78)`;
-
+  // VE MOT CANH HOA
+  function drawPetal(size, color, highlight) {
+    ctx.fillStyle = color;
     ctx.beginPath();
     ctx.ellipse(
-      0, 0,
-      leaf.size * .48,
-      leaf.size,
-      0, 0, Math.PI * 2
+      0,
+      -size * .62,
+      size * .34,
+      size * .58,
+      0,
+      0,
+      Math.PI * 2
     );
     ctx.fill();
 
-    ctx.strokeStyle = "rgba(90,65,20,.35)";
-    ctx.lineWidth = 1;
+    ctx.fillStyle = highlight;
     ctx.beginPath();
-    ctx.moveTo(0, -leaf.size * .7);
-    ctx.lineTo(0, leaf.size * .7);
-    ctx.stroke();
+    ctx.ellipse(
+      -size * .08,
+      -size * .72,
+      size * .11,
+      size * .27,
+      -.15,
+      0,
+      Math.PI * 2
+    );
+    ctx.fill();
+  }
+
+  // VE HOA MAI 5 CANH / HOA DAO 5 CANH
+  function drawFlower(flower) {
+    ctx.save();
+
+    ctx.translate(flower.x, flower.y);
+    ctx.rotate(flower.rot);
+
+    const s = flower.size;
+    const isMai = flower.type === "mai";
+
+    const petalColor = isMai ? "#ffd84d" : "#ff9fbd";
+    const highlight = isMai ? "#fff0a0" : "#ffd3e1";
+    const centerColor = isMai ? "#e98a18" : "#c94e78";
+
+    ctx.globalAlpha = isMai ? .88 : .82;
+
+    for (let i = 0; i < 5; i++) {
+      ctx.save();
+      ctx.rotate((Math.PI * 2 * i) / 5);
+      drawPetal(s, petalColor, highlight);
+      ctx.restore();
+    }
+
+    // NHUY HOA
+    ctx.fillStyle = centerColor;
+    ctx.beginPath();
+    ctx.arc(0, 0, s * .19, 0, Math.PI * 2);
+    ctx.fill();
+
+    ctx.fillStyle = "#fff5ce";
+    ctx.beginPath();
+    ctx.arc(-s * .045, -s * .045, s * .065, 0, Math.PI * 2);
+    ctx.fill();
 
     ctx.restore();
   }
@@ -214,7 +254,7 @@
     }
   }
 
-  // VE HAT
+  // VE HAT PHAO HOA
   function drawParticles() {
     for (let i = particles.length - 1; i >= 0; i--) {
       const p = particles[i];
@@ -261,20 +301,26 @@
     ctx.globalAlpha = 1;
   }
 
-  // VONG LAP HIEU UNG
+  // VONG LAP HOA ROI
   function tick() {
     ctx.clearRect(0, 0, w, h);
 
-    for (const leaf of leaves) {
-      leaf.y += leaf.speed;
-      leaf.x += leaf.drift + Math.sin(leaf.y * .012) * .35;
-      leaf.rot += leaf.spin;
+    for (const flower of flowers) {
+      flower.y += flower.speed;
 
-      if (leaf.y > h + 20) {
-        Object.assign(leaf, makeLeaf(), { y: -20 });
+      flower.sway += flower.swaySpeed;
+      flower.x += flower.drift + Math.sin(flower.sway) * .45;
+
+      flower.rot += flower.spin;
+
+      if (flower.y > h + 25) {
+        Object.assign(flower, makeFlower(), {
+          y: -25,
+          x: rand(0, w)
+        });
       }
 
-      drawLeaf(leaf);
+      drawFlower(flower);
     }
 
     drawParticles();
@@ -285,9 +331,9 @@
     cancelAnimationFrame(raf);
     resize();
 
-    leaves = Array.from(
-      { length: Math.max(12, Math.min(28, Math.round(w / 18))) },
-      makeLeaf
+    flowers = Array.from(
+      { length: Math.max(15, Math.min(32, Math.round(w / 16))) },
+      makeFlower
     );
 
     tick();
@@ -345,6 +391,7 @@
 
     if (isDefeat) {
       burst(w * .5, h * .35, 110, "defeat");
+
       setTimeout(() => {
         burst(w * .3, h * .4, 45, "defeat");
       }, 250);
@@ -385,6 +432,7 @@
     if (document.hidden) {
       cancelAnimationFrame(raf);
     } else {
+      cancelAnimationFrame(raf);
       tick();
     }
   });
@@ -398,4 +446,3 @@
     win: (message) => showResult("win", message || "CHIẾN THẮNG!")
   };
 })();
- 
