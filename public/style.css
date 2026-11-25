@@ -1314,3 +1314,76 @@ button:active {
     display: none !important;
   }
 }
+
+/* =========================================
+   SUA GIAO DIEN TRANG QUAN TRI TREN DIEN THOAI
+   ========================================= */
+
+@media (max-width: 650px) {
+  html:has(main.admin),
+  body:has(main.admin) {
+    width: 100%;
+    height: auto !important;
+    min-height: 100vh;
+    overflow-x: hidden !important;
+    overflow-y: auto !important;
+  }
+
+  body:has(main.admin) {
+    padding: 8px;
+  }
+
+  main.admin {
+    width: 100%;
+    height: auto !important;
+    min-height: 100vh;
+    max-height: none !important;
+    overflow: visible !important;
+    padding: 8px;
+  }
+
+  main.admin header {
+    display: block !important;
+  }
+
+  main.admin .join {
+    display: block !important;
+    width: 100%;
+    max-width: 100%;
+    margin: 12px auto;
+    padding: 13px;
+  }
+
+  main.admin .joinrow {
+    display: flex;
+    flex-direction: column;
+    gap: 9px;
+  }
+
+  main.admin .joinrow input,
+  main.admin .joinrow button {
+    width: 100%;
+    min-height: 44px;
+  }
+
+  main.admin .soundbar {
+    display: flex !important;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+
+  main.admin #soundToggle,
+  main.admin #musicToggle {
+    min-height: 42px;
+    font-size: 14px;
+  }
+
+  main.admin .board {
+    width: 100%;
+    max-width: 100%;
+  }
+
+  main.admin section {
+    margin-bottom: 14px;
+  }
+}
