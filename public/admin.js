@@ -1,27 +1,218 @@
-const socket = io(), boardEl = document.getElementById("board");
-let state = null, firstState=true;
+
+const socket = io();
+const boardEl = document.getElementById("board");
+
+let state = null;
+let firstState = true;
+
 const pin = () => document.getElementById("pin").value;
-const soundButton=document.getElementById('soundToggle');
-soundButton.onclick=()=>{const on=CaroSound.toggle();soundButton.textContent=on?'🔊 Bật âm thanh':'🔇 Tắt âm thanh';soundButton.classList.toggle('off',!on)};
-async function post(path, body={}) {
-  const r = await fetch(path,{method:"POST",headers:{"Content-Type":"application/json","x-admin-pin":pin()},body:JSON.stringify(body)});
-  const data = await r.json(); if(!r.ok) alert(data.error || "Có lỗi"); return data;
+
+const soundButton = document.getElementById("soundToggle");
+
+if (soundButton) {
+  soundButton.onclick = () => {
+    const on = CaroSound.toggle();
+
+    soundButton.textContent = on
+      ? "🔊 Bật âm thanh"
+      : "🔇 Tắt âm thanh";
+
+    soundButton.classList.toggle("off", !on);
+  };
 }
+
+// GUI YEU CAU LEN MAY CHU
+async function post(path, body = {}) {
+  const response = await fetch(path, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "x-admin-pin": pin()
+    },
+    body: JSON.stringify(body)
+  });
+
+  const data = await response.json();
+
+  if (!response.ok) {
+    alert(data.error || "Có lỗi xảy ra.");
+  }
+
+  return data;
+}
+
+// HIEN THI BAN CO VA TRANG THAI
 function render(s) {
-  if(state&&!firstState){const oldCount=state.board.filter(Boolean).length,newCount=s.board.filter(Boolean).length;if(s.queue.length>state.queue.length)CaroSound.join();if(newCount>oldCount)CaroSound.move();if(!state.winner&&s.winner){CaroSound.win();CaroEffects.celebrate(s.winner==="X"?"CHỦ LIVE CHIẾN THẮNG!":"NGƯỜI CHƠI CHIẾN THẮNG!");}if(newCount===0&&oldCount>0&&!s.winner)CaroSound.reset();}
-  firstState=false;state=s; document.getElementById("status").textContent = s.winner ? `🏆 Kết quả: ${s.winner} thắng` : `Lượt: ${s.turn}`;
-  boardEl.innerHTML="";
-  s.board.forEach((v,i)=>{const b=document.createElement("button");b.className="cell "+(v||"");b.textContent=v||"·";b.disabled=!!v||!!s.winner||s.turn!=="X";if(v)b.classList.add('pop');b.onclick=()=>post("/api/admin/move",{index:i});boardEl.appendChild(b);});
-  const q=document.getElementById("queue");q.innerHTML="";
-  if(!s.queue.length) q.textContent="Chưa có người tặng quà hợp lệ.";
-  s.queue.forEach(p=>{const row=document.createElement("div");row.className="queueitem";const label=document.createElement("span");label.textContent=`@${p.username} · ${p.gift}`;const btn=document.createElement("button");btn.textContent="Chọn đấu";btn.onclick=()=>post("/api/admin/select",{username:p.username});row.append(label,btn);q.append(row);});
+  if (!s || !Array.isArray(s.board)) return;
+
+  if (state && !firstState) {
+    const oldCount = state.board.filter(Boolean).length;
+    const newCount = s.board.filter(Boolean).length;
+
+    if (s.queue && state.queue && s.queue.length > state.queue.length) {
+      CaroSound.join();
+    }
+
+    if (newCount > oldCount) {
+      CaroSound.move();
+    }
+
+    // CHU LIVE LA QUAN X
+    if (!state.winner && s.winner) {
+      CaroSound.win();
+
+      if (window.CaroEffects) {
+        if (s.winner === "X") {
+          CaroEffects.win("CHỦ LIVE CHIẾN THẮNG!");
+        } else {
+          CaroEffects.defeat("CHỦ LIVE THUA CUỘC!");
+        }
+      }
+    }
+
+    if (newCount === 0 && oldCount > 0 && !s.winner) {
+      CaroSound.reset();
+    }
+  }
+
+  firstState = false;
+  state = s;
+
+  const status = document.getElementById("status");
+
+  if (status) {
+    status.textContent = s.winner
+      ? `🏆 Kết quả: ${s.winner} thắng`
+      : `Lượt: ${s.turn}`;
+  }
+
+  // VE BAN CO
+  if (boardEl) {
+    boardEl.innerHTML = "";
+
+    s.board.forEach((value, index) => {
+      const cell = document.createElement("button");
+
+      cell.type = "button";
+      cell.className = "cell " + (value || "");
+      cell.textContent = value || "·";
+
+      cell.disabled =
+        !!value ||
+        !!s.winner ||
+        s.turn !== "X";
+
+      if (value) {
+        cell.classList.add("pop");
+      }
+
+      cell.onclick = () => {
+        post("/api/admin/move", { index });
+      };
+
+      boardEl.appendChild(cell);
+    });
+  }
+
+  // DANH SACH NGUOI CHO
+  const queueEl = document.getElementById("queue");
+
+  if (queueEl) {
+    queueEl.innerHTML = "";
+
+    const queue = Array.isArray(s.queue) ? s.queue : [];
+
+    if (!queue.length) {
+      queueEl.textContent = "Chưa có người tặng quà hợp lệ.";
+    }
+
+    queue.forEach(player => {
+      const row = document.createElement("div");
+      row.className = "queueitem";
+
+      const label = document.createElement("span");
+      label.textContent = `@${player.username} · ${player.gift}`;
+
+      const button = document.createElement("button");
+      button.type = "button";
+      button.textContent = "Chọn đấu";
+
+      button.onclick = () => {
+        post("/api/admin/select", {
+          username: player.username
+        });
+      };
+
+      row.append(label, button);
+      queueEl.appendChild(row);
+    });
+  }
 }
-socket.on("state",render);
-document.getElementById("next").onclick=()=>post("/api/admin/next");
-document.getElementById("reset").onclick=()=>post("/api/admin/reset-score");
-document.getElementById("addPlayer").onclick=async()=>{
- const username=document.getElementById("giftUser").value.trim();
- if(!username) return alert("Nhập tên TikTok người tặng.");
- const result=await post("/api/admin/add-player",{username,giftName:"Quà TikTok (đã xác nhận thủ công)"});
- if(result.ok) document.getElementById("giftUser").value="";
-};
+
+// NHAN TRANG THAI TU MAY CHU
+socket.on("state", render);
+
+socket.on("connect", () => {
+  const status = document.getElementById("status");
+
+  if (status && !state) {
+    status.textContent = "Đã kết nối máy chủ";
+  }
+});
+
+socket.on("disconnect", () => {
+  const status = document.getElementById("status");
+
+  if (status) {
+    status.textContent = "Mất kết nối, đang thử lại…";
+  }
+});
+
+socket.on("connect_error", () => {
+  const status = document.getElementById("status");
+
+  if (status) {
+    status.textContent = "Không kết nối được máy chủ!";
+  }
+});
+
+// CAC NUT DIEU KHIEN
+const nextButton = document.getElementById("next");
+
+if (nextButton) {
+  nextButton.onclick = () => {
+    post("/api/admin/next");
+  };
+}
+
+const resetButton = document.getElementById("reset");
+
+if (resetButton) {
+  resetButton.onclick = () => {
+    post("/api/admin/reset-score");
+  };
+}
+
+// THEM NGUOI CHOI DA XAC NHAN QUA
+const addPlayerButton = document.getElementById("addPlayer");
+
+if (addPlayerButton) {
+  addPlayerButton.onclick = async () => {
+    const input = document.getElementById("giftUser");
+    const username = input ? input.value.trim() : "";
+
+    if (!username) {
+      alert("Nhập tên TikTok người tặng.");
+      return;
+    }
+
+    const result = await post("/api/admin/add-player", {
+      username,
+      giftName: "Quà TikTok (đã xác nhận thủ công)"
+    });
+
+    if (result.ok && input) {
+      input.value = "";
+    }
+  };
+}
