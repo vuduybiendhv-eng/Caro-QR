@@ -5,7 +5,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <title>Điều khiển Caro Live</title>
-  <link rel="stylesheet" href="/style.css">
+  <link rel="stylesheet" href="/style.css?v=3">
 </head>
 
 <body>
@@ -36,9 +36,7 @@
 
     <section>
       <h2>🎮 DANH SÁCH ĐÃ DUYỆT · CHỜ ĐẤU</h2>
-      <div id="queue" class="queue">
-        Đang tải…
-      </div>
+      <div id="queue" class="queue">Đang tải…</div>
     </section>
 
     <section class="join">
@@ -46,7 +44,7 @@
       <p>Chủ LIVE xác nhận quà đã nhận trên TikTok rồi nhập tên tài khoản tại đây.</p>
       <div class="joinrow">
         <input id="giftUser" placeholder="Tên TikTok người tặng">
-        <button id="addPlayer">Xác nhận quà</button>
+        <button id="addPlayer" type="button">Xác nhận quà</button>
       </div>
     </section>
 
@@ -64,8 +62,8 @@
       <div class="board" id="board"></div>
 
       <div class="actions">
-        <button id="next">Kết thúc ván / ván mới</button>
-        <button id="reset">Reset điểm</button>
+        <button id="next" type="button">Kết thúc ván / ván mới</button>
+        <button id="reset" type="button">Reset điểm</button>
       </div>
     </section>
 
@@ -78,9 +76,9 @@
   </main>
 
   <script src="/socket.io/socket.io.js"></script>
-  <script src="/sound.js"></script>
-  <script src="/music.js"></script>
-  <script src="/effects.js"></script>
-  <script src="/admin.js"></script>
+  <script src="/sound.js?v=3"></script>
+  <script src="/music.js?v=3"></script>
+  <script src="/effects.js?v=3"></script>
+  <script src="/admin.js?v=3"></script>
 </body>
 </html>
