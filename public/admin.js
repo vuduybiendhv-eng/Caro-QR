@@ -9,6 +9,7 @@
   const pin = () =>
     document.getElementById("pin")?.value || "";
 
+  // PHÁT HIỆU ỨNG VÀ ÂM THANH
   function playEffect(name) {
     try {
       const effects = window.CaroEffects;
@@ -16,11 +17,18 @@
       if (effects && typeof effects[name] === "function") {
         effects[name]();
       }
+
+      const sound = window.CaroSound;
+
+      if (sound && typeof sound[name] === "function") {
+        sound[name]();
+      }
     } catch (error) {
       console.warn("Không chạy được hiệu ứng:", name, error);
     }
   }
 
+  // KIỂM TRA KHI CÓ QUÂN MỚI HOẶC KẾT THÚC VÁN
   function checkEffects(previous, current) {
     if (!previous || !current) return;
 
@@ -425,4 +433,32 @@
       }
     }
   );
+
+  // BẬT / TẮT ÂM THANH
+  const soundToggle = document.getElementById("soundToggle");
+
+  function updateSoundButton() {
+    if (!soundToggle || !window.CaroSound) return;
+
+    soundToggle.textContent = window.CaroSound.isEnabled()
+      ? "🔊 Âm thanh: BẬT"
+      : "🔇 Âm thanh: TẮT";
+  }
+
+  soundToggle?.addEventListener("click", () => {
+    if (!window.CaroSound) {
+      alert("Không tìm thấy file sound.js!");
+      return;
+    }
+
+    const enabled = window.CaroSound.toggle();
+
+    updateSoundButton();
+
+    if (enabled) {
+      window.CaroSound.move();
+    }
+  });
+
+  updateSoundButton();
 })();
