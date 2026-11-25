@@ -1838,3 +1838,50 @@ footer {
     0 2px 5px rgba(0, 40, 25, .5),
     inset 0 2px 4px rgba(255,255,255,.65) !important;
 }
+
+/* =========================================
+   QUAN CO X - DO RUBY
+   ========================================= */
+
+#board .cell.piece-x .stone {
+  background: radial-gradient(
+    circle at 30% 25%,
+    #ffdada 0%,
+    #ff5555 28%,
+    #d00020 65%,
+    #650014 100%
+  ) !important;
+  border: 2px solid #ffaaaa !important;
+  box-shadow:
+    0 2px 5px rgba(80, 0, 0, .55),
+    inset 0 2px 4px rgba(255,255,255,.65),
+    inset 0 -3px 5px rgba(70,0,0,.5) !important;
+}
+
+/* =========================================
+   QUAN CO O - DEN HUYEN
+   ========================================= */
+
+#board .cell.piece-o .stone {
+  background: radial-gradient(
+    circle at 30% 25%,
+    #929292 0%,
+    #3b3b3b 30%,
+    #111111 68%,
+    #000000 100%
+  ) !important;
+  border: 2px solid #777777 !important;
+  box-shadow:
+    0 2px 5px rgba(0, 0, 0, .65),
+    inset 0 2px 4px rgba(255,255,255,.35),
+    inset 0 -3px 5px rgba(0,0,0,.7) !important;
+}
+
+/* Quan co tren the nguoi choi */
+.white-stone {
+  background: radial-gradient(circle at 30% 25%, #ffdada, #d00020 65%, #650014) !important;
+}
+
+.black-stone {
+  background: radial-gradient(circle at 30% 25%, #929292, #222222 65%, #000000) !important;
+}
