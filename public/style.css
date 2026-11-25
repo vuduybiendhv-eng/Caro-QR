@@ -1013,3 +1013,57 @@ footer {
     margin-bottom: 14px;
   }
 }
+
+/* ===== FIX QUAN CO HIEN THI TREN HOST VA NGUOI XEM ===== */
+
+#board .cell {
+  position: relative !important;
+  display: grid !important;
+  place-items: center !important;
+  overflow: visible !important;
+  color: transparent !important;
+}
+
+#board .cell .stone {
+  display: block !important;
+  position: absolute !important;
+  width: 72% !important;
+  height: 72% !important;
+  border-radius: 50% !important;
+  z-index: 10 !important;
+  pointer-events: none !important;
+  opacity: 1 !important;
+  visibility: visible !important;
+}
+
+/* QUAN X - VANG KIM */
+#board .cell.piece-x .stone {
+  background: radial-gradient(
+    circle at 30% 25%,
+    #fff9c9 0%,
+    #ffd95c 35%,
+    #d99116 75%,
+    #8e4e08 100%
+  ) !important;
+
+  border: 2px solid #fff0a0 !important;
+  box-shadow:
+    0 2px 5px rgba(70, 35, 0, .5),
+    inset 0 2px 4px rgba(255,255,255,.65) !important;
+}
+
+/* QUAN O - XANH NGOC */
+#board .cell.piece-o .stone {
+  background: radial-gradient(
+    circle at 30% 25%,
+    #e1fff0 0%,
+    #62d9a1 35%,
+    #16875d 75%,
+    #075239 100%
+  ) !important;
+
+  border: 2px solid #b6ffe0 !important;
+  box-shadow:
+    0 2px 5px rgba(0, 40, 25, .5),
+    inset 0 2px 4px rgba(255,255,255,.65) !important;
+}
