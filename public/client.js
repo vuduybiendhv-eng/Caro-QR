@@ -15,22 +15,18 @@ let username = "";
 let registered = false;
 let firstState = true;
 
-// AM THANH
+// ÂM THANH
 if (soundButton) {
   soundButton.onclick = () => {
     if (!window.CaroSound) return;
 
     const on = CaroSound.toggle();
-
-    soundButton.textContent = on
-      ? "🔊 Bật âm thanh"
-      : "🔇 Tắt âm thanh";
-
+    soundButton.textContent = on ? "🔊 Bật âm thanh" : "🔇 Tắt âm thanh";
     soundButton.classList.toggle("off", !on);
   };
 }
 
-// DONG KHUNG NHAP TEN, GIU LAI THONG BAO
+// ĐÓNG KHUNG NHẬP TÊN
 function closeRegistration(message) {
   registered = true;
 
@@ -52,21 +48,17 @@ function closeRegistration(message) {
   }
 }
 
-// KIEM TRA TRANG THAI DANG KY
+// KIỂM TRA TRẠNG THÁI ĐĂNG KÝ
 function updateRegistration(s) {
   if (!username || !s) return;
 
   const key = username.toLowerCase();
 
   const pending = Array.isArray(s.pendingQueue) &&
-    s.pendingQueue.some(p =>
-      String(p.username).toLowerCase() === key
-    );
+    s.pendingQueue.some(p => String(p.username).toLowerCase() === key);
 
   const approved = Array.isArray(s.queue) &&
-    s.queue.some(p =>
-      String(p.username).toLowerCase() === key
-    );
+    s.queue.some(p => String(p.username).toLowerCase() === key);
 
   const playing = s.activePlayer &&
     s.activePlayer.toLowerCase() === key;
@@ -80,7 +72,7 @@ function updateRegistration(s) {
   }
 }
 
-// CAP NHAT GIAO DIEN
+// CẬP NHẬT GIAO DIỆN
 function render(s) {
   if (!s || !Array.isArray(s.board)) return;
 
@@ -90,10 +82,7 @@ function render(s) {
 
     if (newCount > oldCount && window.CaroSound) {
       CaroSound.move();
-
-      if (window.CaroEffects) {
-        CaroEffects.move();
-      }
+      if (window.CaroEffects) CaroEffects.move();
     }
 
     if (!state.winner && s.winner && window.CaroSound) {
@@ -112,14 +101,13 @@ function render(s) {
   firstState = false;
   state = s;
 
-  // TEN PHONG
+  // TÊN PHÒNG
   const roomEl = document.getElementById("room");
-
   if (roomEl) {
     roomEl.textContent = `${s.roomName || "Caro Live"} · 15×15`;
   }
 
-  // TEN VA DIEM
+  // TÊN VÀ ĐIỂM
   const hostEl = document.getElementById("host");
   const hostScoreEl = document.getElementById("hostScore");
   const viewerScoreEl = document.getElementById("viewerScore");
@@ -130,7 +118,7 @@ function render(s) {
   if (viewerScoreEl) viewerScoreEl.textContent = s.scores?.viewers ?? 0;
   if (opponentEl) opponentEl.textContent = s.activePlayer || "Chưa chọn";
 
-  // TRANG THAI LUOT CHOI
+  // TRẠNG THÁI LƯỢT CHƠI
   if (statusEl) {
     if (s.winner) {
       statusEl.textContent = s.winner === "X"
@@ -138,15 +126,14 @@ function render(s) {
         : `🏆 ${s.activePlayer || "NGƯỜI CHƠI"} CHIẾN THẮNG!`;
     } else {
       statusEl.textContent = s.turn === "O"
-        ? `Đến lượt ${s.activePlayer || "người xem"} (O)`
-        : "Đến lượt chủ LIVE (X)";
+        ? `Đến lượt ${s.activePlayer || "người xem"} (quân xanh)`
+        : "Đến lượt chủ LIVE (quân vàng)";
     }
   }
 
-  // CAP NHAT TRANG THAI DANG KY
   updateRegistration(s);
 
-  // VE BAN CO
+  // VẼ BÀN CỜ VỚI QUÂN TRÒN
   if (!boardEl) return;
 
   boardEl.innerHTML = "";
@@ -155,14 +142,21 @@ function render(s) {
     const cell = document.createElement("button");
 
     cell.type = "button";
-    cell.className = "cell " + (value || "");
-    cell.textContent = value || "·";
+    cell.className = "cell";
+
+    if (value === "X") cell.classList.add("X", "piece-x");
+    if (value === "O") cell.classList.add("O", "piece-o");
 
     if (value) {
+      const stone = document.createElement("span");
+      stone.className = "stone";
+      stone.setAttribute("aria-hidden", "true");
+      cell.appendChild(stone);
+
       cell.classList.add("pop");
       cell.setAttribute(
         "aria-label",
-        value === "X" ? "Quân trắng" : "Quân đen"
+        value === "X" ? "Quân vàng của chủ LIVE" : "Quân xanh của người chơi"
       );
     } else {
       cell.setAttribute("aria-label", `Ô cờ ${index + 1}`);
@@ -184,10 +178,10 @@ function render(s) {
   });
 }
 
-// NHAN TRANG THAI
+// NHẬN TRẠNG THÁI
 socket.on("state", render);
 
-// THONG BAO TU MAY CHU
+// THÔNG BÁO TỪ MÁY CHỦ
 socket.on("notice", message => {
   if (!notice) return;
 
@@ -195,10 +189,7 @@ socket.on("notice", message => {
 
   if (
     message.includes("Đã gửi yêu cầu") ||
-    message.includes("Yêu cầu đã gửi")
-  ) {
-    closeRegistration(message);
-  } else if (
+    message.includes("Yêu cầu đã gửi") ||
     message.includes("đã được duyệt") ||
     message.includes("đang tham gia")
   ) {
@@ -214,7 +205,7 @@ socket.on("notice", message => {
   }
 });
 
-// KET NOI
+// KẾT NỐI
 socket.on("connect", () => {
   if (statusEl && !state) {
     statusEl.textContent = "Đã kết nối máy chủ, đang tải bàn cờ…";
@@ -233,7 +224,7 @@ socket.on("connect_error", () => {
   }
 });
 
-// DANG KY NGUOI CHOI
+// ĐĂNG KÝ NGƯỜI CHƠI
 if (joinButton) {
   joinButton.onclick = () => {
     if (registered) return;
@@ -254,4 +245,4 @@ if (joinButton) {
 
     socket.emit("viewer:register", { username });
   };
-}
+                   }
