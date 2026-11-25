@@ -64,39 +64,18 @@
     <!-- KHU VUC TRO CHOI -->
     <section class="game-area">
 
-      <!-- THANH BEN TRAI -->
       <nav class="game-nav">
-        <div class="nav-item">
-          👥
-          <span>Phòng chờ</span>
-        </div>
-
-        <div class="nav-item">
-          🎮
-          <span>Đang chơi</span>
-        </div>
-
-        <div class="nav-item">
-          🏆
-          <span>BXH</span>
-        </div>
-
-        <div class="nav-item">
-          📖
-          <span>Luật chơi</span>
-        </div>
-
-        <div class="nav-item">
-          ⚙️
-          <span>Cài đặt</span>
-        </div>
+        <div class="nav-item">👥 <span>Phòng chờ</span></div>
+        <div class="nav-item">🎮 <span>Đang chơi</span></div>
+        <div class="nav-item">🏆 <span>BXH</span></div>
+        <div class="nav-item">📖 <span>Luật chơi</span></div>
+        <div class="nav-item">⚙️ <span>Cài đặt</span></div>
       </nav>
 
-      <!-- COT TRUNG TAM: BAN CO + QR -->
+      <!-- BAN CO VA QR -->
       <div class="board-column">
 
         <div class="board-panel">
-
           <div class="board-heading">
             BÀN CỜ CARO · 15×15
           </div>
@@ -106,23 +85,22 @@
             id="board"
             aria-label="Bàn cờ caro 15 nhân 15">
           </div>
-
         </div>
 
-        <!-- QR RIENG, NAM DUOI BAN CO -->
+        <!-- QR DẪN THẲNG ĐẾN TRANG PLAY -->
         <div class="qr-card">
           <h3>📱 QUÉT QR ĐỂ THAM GIA</h3>
 
           <img
-            src="/api/qr"
-            alt="Mã QR tham gia Caro Live">
+            src="https://api.qrserver.com/v1/create-qr-code/?size=500x500&amp;margin=15&amp;data=https%3A%2F%2Fcaro-qr-production-fe079703.up.railway.app%2Fplay"
+            alt="QR mở trực tiếp trang chơi Caro Live">
 
           <p>Quét mã để vào phòng Caro Live</p>
         </div>
 
       </div>
 
-      <!-- COT THONG TIN -->
+      <!-- THONG TIN BEN PHAI -->
       <aside class="game-sidebar">
 
         <div class="sidebar-card live-card">
@@ -154,15 +132,12 @@
         </div>
 
       </aside>
-
     </section>
 
     <!-- DANG KY THAM GIA -->
     <section class="join">
 
-      <label for="username">
-        Tên TikTok của bạn
-      </label>
+      <label for="username">Tên TikTok của bạn</label>
 
       <div class="joinrow">
         <input
@@ -182,17 +157,14 @@
       </p>
 
       <div id="notice"></div>
-
     </section>
 
     <!-- KHUNG TRO CHUYEN -->
     <section class="chat-panel">
       <span>💬</span>
-
       <span class="chat-placeholder">
         Khung trò chuyện sẽ được tích hợp ở bước tiếp theo
       </span>
-
       <span>😊</span>
     </section>
 
@@ -211,4 +183,5 @@
   <script src="/client.js"></script>
 
 </body>
-</html>
+  </html>
+  
