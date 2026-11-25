@@ -698,3 +698,36 @@ footer {
     grid-template-columns: 1fr 1fr;
   }
 }
+
+/* BO KHUNG TIEU DE - LAY BAN CO LAM TRUNG TAM */
+.caro-header {
+  display: none !important;
+}
+
+.game-area {
+  margin-top: 12px;
+}
+
+.board-panel {
+  justify-self: center;
+  width: 100%;
+}
+
+.board-heading {
+  text-align: center;
+}
+
+/* Tren dien thoai: ban co chiem phan trung tam */
+@media (max-width: 650px) {
+  .game-area {
+    grid-template-columns: 42px minmax(0, 1fr);
+    align-items: start;
+    gap: 6px;
+  }
+
+  .board-panel {
+    grid-column: 2;
+    grid-row: 1;
+    width: 100%;
+  }
+}
