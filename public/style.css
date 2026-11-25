@@ -222,3 +222,94 @@ footer {
     padding: 6px 4px;
   }
 }
+
+/* BO CUC BAN CO GIUA - THONG TIN BEN PHAI */
+.game-area {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 190px;
+  gap: 14px;
+  align-items: start;
+  margin: 16px 0;
+}
+
+.board-panel {
+  min-width: 0;
+  padding: 10px;
+  border: 3px solid #ffd36b;
+  border-radius: 20px;
+  background: linear-gradient(145deg, #fff0d0, #b97832);
+  box-shadow: 0 8px 24px #51270c99;
+}
+
+.board-heading {
+  text-align: center;
+  color: #754016;
+  font-weight: 900;
+  letter-spacing: .08em;
+  margin: 2px 0 10px;
+}
+
+.board-panel .board {
+  width: 100%;
+  max-width: none;
+  margin: 0;
+}
+
+.game-sidebar {
+  display: grid;
+  gap: 12px;
+}
+
+.sidebar-card {
+  padding: 14px 10px;
+  border: 2px solid #ffd36b;
+  border-radius: 16px;
+  background: linear-gradient(145deg, #fff0d0, #9d592e);
+  color: #492613;
+  box-shadow: 0 6px 18px #51270c77;
+}
+
+.sidebar-card h2 {
+  margin: 0 0 10px;
+  color: #713b13;
+  font-size: 15px;
+  text-align: center;
+}
+
+.sidebar-card p {
+  font-size: 13px;
+  line-height: 1.5;
+  margin: 8px 0;
+}
+
+.status-copy {
+  padding: 9px;
+  margin-top: 10px;
+  border-radius: 10px;
+  background: #ffe6a5;
+  color: #713b13;
+  font-size: 12px;
+  font-weight: 800;
+  text-align: center;
+}
+
+/* DIEN THOAI: XEP BANG THONG TIN DUOI BAN CO */
+@media (max-width: 650px) {
+  .game-area {
+    grid-template-columns: 1fr;
+  }
+
+  .game-sidebar {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .board-panel {
+    padding: 6px;
+  }
+}
+
+@media (max-width: 390px) {
+  .game-sidebar {
+    grid-template-columns: 1fr;
+  }
+}
