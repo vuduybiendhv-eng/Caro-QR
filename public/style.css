@@ -313,3 +313,102 @@ footer {
     grid-template-columns: 1fr;
   }
 }
+
+/* CARO LIVE - BỐ CỤC BÀN CỜ VÀ SIDEBAR */
+.game-area {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 230px;
+  gap: 14px;
+  align-items: start;
+  margin-top: 16px;
+}
+
+.board-panel {
+  min-width: 0;
+  padding: 12px;
+  border: 3px solid #ffd66e;
+  border-radius: 20px;
+  background: linear-gradient(145deg,#fff0c6,#b97832);
+  box-shadow: 0 8px 24px #4b250c88;
+}
+
+.board-heading {
+  text-align: center;
+  color: #70401e;
+  font-weight: 900;
+  font-size: 20px;
+  margin-bottom: 12px;
+}
+
+.board-panel .board {
+  width: 100%;
+  margin: 0 auto;
+}
+
+.game-sidebar {
+  display: grid;
+  gap: 12px;
+  min-width: 0;
+}
+
+.sidebar-card {
+  padding: 13px;
+  border: 2px solid #ffd36b;
+  border-radius: 17px;
+  color: #fff4df;
+  background: linear-gradient(145deg,#a85d2b,#59321f);
+  box-shadow: 0 6px 18px #35170788;
+}
+
+.sidebar-card h2 {
+  margin: 0 0 12px;
+  color: #ffe58b;
+  font-size: 15px;
+}
+
+.sidebar-card p {
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.turn-item {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  margin: 12px 0;
+  font-size: 13px;
+}
+
+.qr-card {
+  text-align: center;
+}
+
+.qr-card img {
+  display: block;
+  width: 100%;
+  max-width: 180px;
+  margin: 10px auto;
+  padding: 7px;
+  background: white;
+  border-radius: 12px;
+}
+
+@media(max-width:650px) {
+  .game-area {
+    grid-template-columns: 1fr;
+  }
+
+  .game-sidebar {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .qr-card img {
+    max-width: 150px;
+  }
+}
+
+@media(max-width:390px) {
+  .game-sidebar {
+    grid-template-columns: 1fr;
+  }
+}
