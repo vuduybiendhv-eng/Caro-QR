@@ -1,65 +1,88 @@
 
+/* =========================================
+   CARO LIVE - FIX CUOI CUNG
+   QR + DONG HO + QUAN CO
+   ========================================= */
+
 /* QR VA DONG HO NAM CANH NHAU */
 .qr-timer-row {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 12px;
-  width: 100%;
-  margin: 14px auto;
+  display: flex !important;
+  flex-direction: row !important;
+  align-items: center !important;
+  justify-content: center !important;
+  gap: 10px !important;
+  width: 100% !important;
+  margin: 12px auto !important;
 }
 
+/* KHUNG QR */
 .qr-timer-row .qr-card {
-  flex: 1 1 auto;
-  min-width: 0;
+  flex: 1 1 0 !important;
+  width: auto !important;
+  min-width: 0 !important;
+  max-width: 210px !important;
+  margin: 0 !important;
+  padding: 8px !important;
+}
+
+.qr-timer-row .qr-card h3 {
+  font-size: 12px !important;
+  line-height: 1.3 !important;
 }
 
 .qr-timer-row .qr-card img {
-  display: block;
-  width: 100%;
-  max-width: 190px;
-  height: auto;
-  margin: 0 auto;
+  display: block !important;
+  width: 100% !important;
+  max-width: 135px !important;
+  height: auto !important;
+  aspect-ratio: 1 / 1 !important;
+  margin: 5px auto !important;
 }
 
+.qr-timer-row .qr-card p {
+  font-size: 10px !important;
+}
+
+/* DONG HO MINI */
 .qr-timer-row .timer-section {
-  flex: 0 0 105px;
-  width: 105px;
-  max-width: 105px;
-  min-width: 0;
-  padding: 8px 5px;
-  margin: 0;
-  border-radius: 14px;
+  flex: 0 0 100px !important;
+  width: 100px !important;
+  min-width: 0 !important;
+  max-width: 100px !important;
+  margin: 0 !important;
+  padding: 7px 4px !important;
+  border-radius: 12px !important;
 }
 
 .qr-timer-row .timer-heading {
-  font-size: 10px;
-  line-height: 1.3;
+  font-size: 9px !important;
+  line-height: 1.3 !important;
 }
 
 .qr-timer-row .hourglass-wrap {
-  width: 42px;
-  height: 63px;
-  margin: 5px auto 0;
+  width: 32px !important;
+  height: 48px !important;
+  margin: 4px auto 0 !important;
 }
 
 .qr-timer-row .timer-number {
-  font-size: 34px;
-  margin-top: 2px;
+  font-size: 27px !important;
+  line-height: 1 !important;
+  margin-top: 2px !important;
 }
 
 .qr-timer-row .timer-unit {
-  font-size: 8px;
-  letter-spacing: 1px;
+  font-size: 7px !important;
+  letter-spacing: .5px !important;
 }
 
 .qr-timer-row .timer-message {
-  font-size: 9px;
-  line-height: 1.3;
-  margin-top: 5px;
+  font-size: 8px !important;
+  line-height: 1.3 !important;
+  margin-top: 4px !important;
 }
 
-/* QUAN CO DUNG YEN - KHONG NHAY LEN */
+/* QUAN CO KHONG NHAY, KHONG PHONG TO */
 #board .cell,
 #board .cell.pop,
 #board .cell .stone,
@@ -68,29 +91,79 @@
   transform: none !important;
 }
 
-/* MAN HINH NHO */
-@media (max-width: 480px) {
+#board .cell .stone {
+  transition: none !important;
+  position: absolute !important;
+  pointer-events: none !important;
+}
+
+/* ANH NHAN VAT KHONG BI PHONG TO */
+.avatar3d {
+  flex: 0 0 94px !important;
+  width: 94px !important;
+  height: 112px !important;
+  overflow: hidden !important;
+}
+
+.avatar3d img {
+  display: block !important;
+  width: 100% !important;
+  height: 100% !important;
+  max-width: 100% !important;
+  object-fit: cover !important;
+}
+
+/* DIEN THOAI */
+@media (max-width: 650px) {
   .qr-timer-row {
-    gap: 8px;
+    gap: 7px !important;
   }
 
-  .qr-timer-row .timer-section {
-    flex-basis: 92px;
-    width: 92px;
-    max-width: 92px;
-    padding: 7px 4px;
-  }
-
-  .qr-timer-row .hourglass-wrap {
-    width: 36px;
-    height: 54px;
-  }
-
-  .qr-timer-row .timer-number {
-    font-size: 30px;
+  .qr-timer-row .qr-card {
+    flex: 1 1 0 !important;
+    max-width: 175px !important;
+    padding: 6px !important;
   }
 
   .qr-timer-row .qr-card img {
-    max-width: 155px;
+    max-width: 115px !important;
+  }
+
+  .qr-timer-row .timer-section {
+    flex-basis: 92px !important;
+    width: 92px !important;
+    max-width: 92px !important;
+    padding: 5px 3px !important;
+  }
+
+  .qr-timer-row .hourglass-wrap {
+    width: 27px !important;
+    height: 41px !important;
+  }
+
+  .qr-timer-row .timer-number {
+    font-size: 24px !important;
+  }
+
+  .avatar3d {
+    flex-basis: 48px !important;
+    width: 48px !important;
+    height: 58px !important;
+  }
+}
+
+@media (max-width: 390px) {
+  .qr-timer-row {
+    gap: 5px !important;
+  }
+
+  .qr-timer-row .timer-section {
+    flex-basis: 84px !important;
+    width: 84px !important;
+    max-width: 84px !important;
+  }
+
+  .qr-timer-row .qr-card img {
+    max-width: 100px !important;
   }
 }
