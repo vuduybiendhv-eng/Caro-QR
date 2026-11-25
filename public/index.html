@@ -64,21 +64,43 @@
              aria-label="Bàn cờ caro 15 nhân 15"></div>
       </div>
 
-      <aside class="game-sidebar">
-        <div class="sidebar-card">
-          <h2>⚪⚫ LƯỢT CHƠI</h2>
-          <p>Chủ LIVE: quân trắng</p>
-          <p>Người xem: quân đen</p>
-          <div class="status-copy">
-            5 quân liên tiếp để chiến thắng
-          </div>
-        </div>
+      
+<aside class="game-sidebar">
 
-        <div class="sidebar-card">
-          <h2>🎁 THAM GIA</h2>
-          <p>Vào phòng và chờ chủ LIVE xác nhận quà.</p>
-        </div>
-      </aside>
+  <div class="sidebar-card live-card">
+    <h2>🔴 LIVE ĐANG CHẠY</h2>
+    <p>🎁 Chào mừng người chơi Caro Live!</p>
+    <p>👀 Cùng tham gia thách đấu chủ phòng.</p>
+  </div>
+
+  <div class="sidebar-card">
+    <h2>⚪⚫ LƯỢT CHƠI</h2>
+    <div class="turn-item">
+      <span class="white-stone stone-preview"></span>
+      <span>Chủ LIVE · Quân trắng</span>
+    </div>
+    <div class="turn-item">
+      <span class="black-stone stone-preview"></span>
+      <span>Người xem · Quân đen</span>
+    </div>
+    <div class="status-copy">
+      5 quân liên tiếp để chiến thắng
+    </div>
+  </div>
+
+  <div class="sidebar-card qr-card">
+    <h2>📱 QUÉT QR THAM GIA</h2>
+    <img src="/api/qr" alt="Mã QR tham gia Caro Live">
+    <p>Quét mã để vào phòng chơi</p>
+  </div>
+
+  <div class="sidebar-card">
+    <h2>🎁 THAM GIA</h2>
+    <p>Vào phòng, tặng quà trên LIVE và chờ chủ phòng xác nhận.</p>
+  </div>
+
+</aside>
+
     </section>
 
     <section class="join">
