@@ -870,3 +870,22 @@ button:active {
   font-weight: 800;
   line-height: 1.4;
 }
+/* An khung victory khi chua co thong bao */
+#victoryBanner:empty {
+  display: none !important;
+}
+
+.victory-banner:empty {
+  display: none !important;
+}
+
+/* Trang thai hien ro rang */
+.game-status .status {
+  position: relative;
+  z-index: 2;
+  min-height: 72px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  text-align: center;
+}w
