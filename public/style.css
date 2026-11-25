@@ -934,3 +934,230 @@ button:active {
   font-weight: 800;
   line-height: 1.4;
 }
+
+/* ===================================
+   CARO LIVE - CHE DO MOT MAN HINH
+   =================================== */
+
+@media (max-width: 650px) {
+  html,
+  body {
+    width: 100%;
+    height: 100%;
+    min-height: 0;
+    margin: 0;
+    padding: 0;
+    overflow: hidden !important;
+  }
+
+  .wrap {
+    width: 100%;
+    max-width: 100%;
+    height: 100vh;
+    height: 100dvh;
+    max-height: 100dvh;
+    margin: 0 auto;
+    padding: 5px 7px;
+    overflow: hidden;
+  }
+
+  .caro-layout {
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    gap: 4px;
+    overflow: hidden;
+  }
+
+  /* NHAN VAT */
+  .arena-players {
+    flex: 0 0 auto;
+    grid-template-columns: minmax(0, 1fr) 20px minmax(0, 1fr);
+    gap: 4px;
+  }
+
+  .player-card {
+    min-height: 72px;
+    padding: 5px;
+    gap: 5px;
+    border-width: 2px;
+    border-radius: 14px;
+  }
+
+  .avatar3d {
+    flex: 0 0 48px;
+    width: 48px;
+    height: 58px;
+    border-radius: 10px;
+  }
+
+  .player-meta {
+    gap: 2px;
+  }
+
+  .player-meta b {
+    font-size: 11px;
+  }
+
+  .player-meta small {
+    font-size: 8px;
+    line-height: 1.15;
+  }
+
+  .player-meta strong {
+    font-size: 17px;
+  }
+
+  .player-card .stone-preview {
+    display: none;
+  }
+
+  .versus {
+    font-size: 12px;
+  }
+
+  /* TRANG THAI */
+  .game-status {
+    flex: 0 0 auto;
+    gap: 4px;
+  }
+
+  .game-status .status {
+    min-height: 36px;
+    padding: 5px;
+    border-width: 2px;
+    border-radius: 12px;
+    font-size: 14px;
+  }
+
+  #soundToggle {
+    min-height: 30px;
+    padding: 5px 14px;
+    border-radius: 10px;
+    font-size: 13px;
+  }
+
+  /* KHU VUC CHINH */
+  .game-area {
+    flex: 1 1 auto;
+    min-height: 0;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: minmax(0, 1fr) auto;
+    gap: 4px;
+    overflow: hidden;
+  }
+
+  .game-nav {
+    display: none !important;
+  }
+
+  /* BAN CO */
+  .board-column {
+    grid-column: 1;
+    grid-row: 1;
+    min-height: 0;
+    width: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+  }
+
+  .board-panel {
+    width: min(100%, calc(100vw - 14px));
+    max-height: 100%;
+    min-height: 0;
+    padding: 5px;
+    border-width: 2px;
+    border-radius: 15px;
+    gap: 3px;
+  }
+
+  .board-heading {
+    flex: 0 0 auto;
+    margin: 0 0 3px;
+    font-size: 14px;
+  }
+
+  #board,
+  .board {
+    width: min(100%, calc(100dvh - 290px));
+    max-width: 100%;
+    aspect-ratio: 1 / 1;
+    flex: 0 1 auto;
+  }
+
+  #board > *,
+  .board > * {
+    min-width: 0;
+    min-height: 0;
+    border-width: 1px;
+    font-size: clamp(8px, 2.5vw, 15px);
+  }
+
+  /* QR NHO GON NGAY DUOI BAN CO */
+  .qr-side-card {
+    grid-column: 1;
+    grid-row: 2;
+    width: min(100%, 250px);
+    min-height: 48px;
+    margin: 2px auto;
+    padding: 4px 8px;
+    display: flex;
+    flex-direction: row;
+    justify-content: center;
+    align-items: center;
+    gap: 8px;
+    border-width: 2px;
+    border-radius: 12px;
+  }
+
+  .qr-side-card h3 {
+    margin: 0;
+    font-size: 11px;
+  }
+
+  .qr-side-card img {
+    width: 42px;
+    height: 42px;
+    padding: 2px;
+  }
+
+  .qr-side-card p {
+    margin: 0;
+    font-size: 9px;
+  }
+
+  /* AN CAC KHUNG PHU DE KHONG PHAI CUON */
+  .game-sidebar,
+  .join,
+  .chat-panel,
+  footer {
+    display: none !important;
+  }
+}
+
+/* MAN HINH THAP */
+@media (max-width: 650px) and (max-height: 700px) {
+  .avatar3d {
+    flex-basis: 40px;
+    width: 40px;
+    height: 48px;
+  }
+
+  .player-card {
+    min-height: 62px;
+  }
+
+  #board,
+  .board {
+    width: min(100%, calc(100dvh - 260px));
+  }
+
+  .qr-side-card img {
+    width: 34px;
+    height: 34px;
+  }
+}
