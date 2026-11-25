@@ -4,11 +4,12 @@
 
   const boardEl = document.getElementById("board");
   let state = null;
+  let timerInterval = null;
 
   const pin = () =>
     document.getElementById("pin")?.value || "";
 
-  // GỌI HIỆU ỨNG AN TOÀN
+  // HIỆU ỨNG
   function playEffect(name) {
     try {
       const effects = window.CaroEffects;
@@ -21,27 +22,18 @@
     }
   }
 
-  // KIỂM TRA NƯỚC ĐI VÀ KẾT QUẢ MỚI
   function checkEffects(previous, current) {
     if (!previous || !current) return;
 
     const oldCount = previous.board.filter(Boolean).length;
     const newCount = current.board.filter(Boolean).length;
 
-    // Có quân cờ mới được đánh
     if (newCount > oldCount) {
       playEffect("move");
     }
 
-    // Chỉ chạy hiệu ứng khi vừa xuất hiện kết quả
     if (!previous.winner && current.winner) {
-      if (current.winner === "X") {
-        // Chủ LIVE thắng
-        playEffect("win");
-      } else {
-        // Người xem thắng
-        playEffect("defeat");
-      }
+      playEffect(current.winner === "X" ? "win" : "defeat");
     }
   }
 
@@ -79,13 +71,106 @@
     button.type = "button";
     button.textContent = label;
 
-    if (className) {
-      button.className = className;
-    }
+    if (className) button.className = className;
 
     button.addEventListener("click", action);
 
     return button;
+  }
+
+  // ĐỒNG HỒ CÁT 30 GIÂY
+  function renderTimer() {
+    const panel = document.getElementById("timerPanel");
+    const owner = document.getElementById("timerOwner");
+    const number = document.getElementById("timerNumber");
+    const message = document.getElementById("timerMessage");
+    const topSand = document.getElementById("topSand");
+    const bottomSand = document.getElementById("bottomSand");
+    const stream = document.getElementById("sandStream");
+
+    if (!panel || !number || !state) return;
+
+    const s = state;
+    const deadline = Number(s.turnDeadline);
+
+    panel.classList.remove(
+      "timer-host",
+      "timer-viewer",
+      "timer-idle",
+      "timer-warning",
+      "timer-finished"
+    );
+
+    // Chưa bắt đầu hoặc đã kết thúc ván
+    if (s.winner || !Number.isFinite(deadline) || deadline <= 0) {
+      panel.classList.add("timer-idle");
+
+      if (s.winner) {
+        if (owner) owner.textContent = "🏁 VÁN ĐẤU ĐÃ KẾT THÚC";
+        number.textContent = "0";
+        if (message) {
+          message.textContent =
+            s.winner === "X"
+              ? "Chủ LIVE chiến thắng!"
+              : "Người chơi chiến thắng!";
+        }
+      } else {
+        if (owner) owner.textContent = "⏳ ĐANG CHỜ LƯỢT CHƠI";
+        number.textContent = "30";
+        if (message) message.textContent = "Chờ bắt đầu trận đấu";
+      }
+
+      if (topSand) topSand.style.transform = "scaleY(1)";
+      if (bottomSand) bottomSand.style.transform = "scaleY(0.05)";
+      if (stream) stream.style.opacity = "0";
+
+      return;
+    }
+
+    const isHostTurn = s.turn === "X";
+    panel.classList.add(isHostTurn ? "timer-host" : "timer-viewer");
+
+    if (owner) {
+      owner.textContent = isHostTurn
+        ? "❌ LƯỢT CHỦ LIVE (X)"
+        : `⭕ LƯỢT @${s.activePlayer || "NGƯỜI CHƠI"} (O)`;
+    }
+
+    // turnDeadline là thời điểm kết thúc lượt do server gửi
+    const remainingMs = Math.max(0, deadline - Date.now());
+    const seconds = Math.ceil(remainingMs / 1000);
+    const progress = Math.max(0, Math.min(1, remainingMs / 30000));
+
+    number.textContent = String(seconds);
+
+    if (message) {
+      message.textContent = seconds <= 5
+        ? "⚠️ Nhanh tay! Sắp hết giờ!"
+        : isHostTurn
+          ? "Chủ LIVE đang có lượt đánh"
+          : `Đang chờ @${s.activePlayer || "người chơi"} đánh`;
+    }
+
+    if (seconds <= 5) {
+      panel.classList.add("timer-warning");
+    }
+
+    if (seconds <= 0) {
+      panel.classList.add("timer-finished");
+    }
+
+    // Điều khiển cát theo thời gian thực, không dùng hoạt ảnh 30 giây độc lập
+    if (topSand) {
+      topSand.style.transform = `scaleY(${progress})`;
+    }
+
+    if (bottomSand) {
+      bottomSand.style.transform = `scaleY(${1 - progress})`;
+    }
+
+    if (stream) {
+      stream.style.opacity = seconds > 0 ? "1" : "0";
+    }
   }
 
   // VẼ BÀN CỜ
@@ -108,13 +193,10 @@
         cell.classList.add("O", "piece-o");
       }
 
-      // TẠO HÌNH QUÂN CỜ
       if (value === "X" || value === "O") {
         const stone = document.createElement("span");
-
         stone.className = "stone";
         stone.setAttribute("aria-hidden", "true");
-
         cell.appendChild(stone);
       }
 
@@ -123,7 +205,6 @@
         !!s.winner ||
         s.turn !== "X";
 
-      // HOST ĐÁNH QUÂN X
       cell.addEventListener("click", async () => {
         if (
           !state ||
@@ -136,9 +217,7 @@
 
         cell.disabled = true;
 
-        const result = await post("/api/admin/move", {
-          index
-        });
+        const result = await post("/api/admin/move", { index });
 
         if (!result.ok && state) {
           renderBoard(state);
@@ -152,7 +231,6 @@
   // DANH SÁCH CHỜ DUYỆT
   function renderPendingQueue(s) {
     const pending = document.getElementById("pendingQueue");
-
     if (!pending) return;
 
     pending.innerHTML = "";
@@ -183,9 +261,7 @@
       });
 
       const reject = createButton("✕ Từ chối", async () => {
-        if (!confirm("Từ chối @" + player.username + "?")) {
-          return;
-        }
+        if (!confirm("Từ chối @" + player.username + "?")) return;
 
         await post("/api/admin/reject-player", {
           username: player.username
@@ -200,7 +276,6 @@
   // DANH SÁCH ĐÃ DUYỆT
   function renderQueue(s) {
     const queue = document.getElementById("queue");
-
     if (!queue) return;
 
     queue.innerHTML = "";
@@ -268,21 +343,20 @@
     }
   }
 
-  // NHẬN TRẠNG THÁI MỚI TỪ SERVER
+  // NHẬN TRẠNG THÁI TỪ SERVER
   function render(s) {
     if (!s || !Array.isArray(s.board)) return;
 
     const previous = state;
 
-    // Kiểm tra hiệu ứng trước khi cập nhật state
     checkEffects(previous, s);
-
     state = s;
 
     renderInfo(s);
     renderBoard(s);
     renderPendingQueue(s);
     renderQueue(s);
+    renderTimer();
 
     console.log(
       "Đã cập nhật bàn cờ:",
@@ -291,6 +365,11 @@
       "quân"
     );
   }
+
+  // CẬP NHẬT ĐỒNG HỒ LIÊN TỤC TRÊN ĐIỆN THOẠI
+  timerInterval = setInterval(() => {
+    if (state) renderTimer();
+  }, 200);
 
   // SOCKET.IO
   socket.on("state", render);
@@ -315,9 +394,7 @@
   document.getElementById("next")?.addEventListener(
     "click",
     async () => {
-      if (!confirm("Kết thúc ván và bắt đầu ván mới?")) {
-        return;
-      }
+      if (!confirm("Kết thúc ván và bắt đầu ván mới?")) return;
 
       await post("/api/admin/next");
     }
@@ -327,9 +404,7 @@
   document.getElementById("reset")?.addEventListener(
     "click",
     async () => {
-      if (!confirm("Bạn muốn xóa toàn bộ điểm số?")) {
-        return;
-      }
+      if (!confirm("Bạn muốn xóa toàn bộ điểm số?")) return;
 
       await post("/api/admin/reset-score");
     }
