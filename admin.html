@@ -7,7 +7,19 @@
 <p>Chủ LIVE nhìn thấy quà trên TikTok ở điện thoại 1, sau đó nhập đúng tên tài khoản tại đây.</p>
 <div class="joinrow"><input id="giftUser" placeholder="Tên TikTok người tặng"><button id="addPlayer">Xác nhận quà</button></div>
 </section>
-<section><h2>Hàng chờ quà tặng</h2><div id="queue" class="queue">Đang tải…</div></section>
+<section class="join">
+  <h2>📨 YÊU CẦU THAM GIA · CHỜ DUYỆT</h2>
+  <div id="pendingQueue" class="queue">
+    Chưa có yêu cầu đăng ký mới.
+  </div>
+</section>
+
+<section>
+  <h2>🎮 DANH SÁCH ĐÃ DUYỆT · CHỜ ĐẤU</h2>
+  <div id="queue" class="queue">
+    Đang tải…
+  </div>
+</section>
 <section><h2>Bàn cờ chủ LIVE</h2><p id="status">Chủ LIVE đánh quân X</p><div class="board" id="board"></div><div class="actions"><button id="next">Kết thúc ván / ván mới</button><button id="reset">Reset điểm</button></div></section>
 <p><a href="/qr.html">Mở trang QR cho OBS</a> · <a href="/play">Mở trang người chơi</a></p></main>
 <script src="/socket.io/socket.io.js"></script><script src="/admin.js"></script></body></html>
