@@ -66,20 +66,41 @@ function playSound(name) {
   }
 }
 
+// CAP NHAT NUT BAT / TAT AM THANH
+function updateSoundButton() {
+  if (!soundButton || !window.CaroSound) return;
+
+  const enabled = window.CaroSound.isEnabled();
+
+  soundButton.textContent = enabled
+    ? "🔊 Tắt âm thanh"
+    : "🔇 Bật âm thanh";
+
+  soundButton.classList.toggle("off", !enabled);
+}
+
 // NUT BAT / TAT AM THANH
 if (soundButton) {
   soundButton.onclick = () => {
-    if (!window.CaroSound) return;
+    if (!window.CaroSound) {
+      if (notice) {
+        notice.textContent = "Không tìm thấy file sound.js!";
+      }
+      return;
+    }
 
-    const on = CaroSound.toggle();
+    const enabled = window.CaroSound.toggle();
 
-    soundButton.textContent = on
-      ? "🔊 Bật âm thanh"
-      : "🔇 Tắt âm thanh";
+    updateSoundButton();
 
-    soundButton.classList.toggle("off", !on);
+    // PHAT THU MOT TIENG KHI BAT
+    if (enabled) {
+      playSound("move");
+    }
   };
 }
+
+updateSoundButton();
 
 // DONG HO CAT DEM NGUOC
 function renderTimer() {
@@ -247,17 +268,21 @@ function checkGameEffects(previous, current) {
   const oldCount = previous.board.filter(Boolean).length;
   const newCount = current.board.filter(Boolean).length;
 
+  // CO QUAN MOI
   if (newCount > oldCount) {
     playSound("move");
     playEffect("move");
   }
 
+  // KET THUC VAN
   if (!previous.winner && current.winner) {
-    playSound("win");
-
     if (current.winner === "O") {
+      // NGUOI XEM THANG
+      playSound("win");
       playEffect("win", "BẠN CHIẾN THẮNG!");
     } else {
+      // CHU LIVE THANG - NGUOI XEM THUA
+      playSound("defeat");
       playEffect("defeat", "BẠN THUA CUỘC!");
     }
   }
