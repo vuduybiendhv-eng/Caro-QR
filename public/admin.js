@@ -8,6 +8,43 @@
   const pin = () =>
     document.getElementById("pin")?.value || "";
 
+  // GỌI HIỆU ỨNG AN TOÀN
+  function playEffect(name) {
+    try {
+      const effects = window.CaroEffects;
+
+      if (effects && typeof effects[name] === "function") {
+        effects[name]();
+      }
+    } catch (error) {
+      console.warn("Không chạy được hiệu ứng:", name, error);
+    }
+  }
+
+  // KIỂM TRA NƯỚC ĐI VÀ KẾT QUẢ MỚI
+  function checkEffects(previous, current) {
+    if (!previous || !current) return;
+
+    const oldCount = previous.board.filter(Boolean).length;
+    const newCount = current.board.filter(Boolean).length;
+
+    // Có quân cờ mới được đánh
+    if (newCount > oldCount) {
+      playEffect("move");
+    }
+
+    // Chỉ chạy hiệu ứng khi vừa xuất hiện kết quả
+    if (!previous.winner && current.winner) {
+      if (current.winner === "X") {
+        // Chủ LIVE thắng
+        playEffect("win");
+      } else {
+        // Người xem thắng
+        playEffect("defeat");
+      }
+    }
+  }
+
   // GỬI YÊU CẦU ĐẾN SERVER
   async function post(path, body = {}) {
     try {
@@ -28,7 +65,6 @@
       }
 
       return data;
-
     } catch (error) {
       console.error(error);
       alert("Không kết nối được máy chủ Caro LIVE.");
@@ -64,12 +100,10 @@
       cell.type = "button";
       cell.className = "cell";
 
-      // QUÂN X - VÀNG ĐỒNG
       if (value === "X") {
         cell.classList.add("X", "piece-x");
       }
 
-      // QUÂN O - XANH NGỌC
       if (value === "O") {
         cell.classList.add("O", "piece-o");
       }
@@ -84,7 +118,6 @@
         cell.appendChild(stone);
       }
 
-      // CHỈ CHO HOST ĐÁNH KHI ĐẾN LƯỢT X
       cell.disabled =
         !!value ||
         !!s.winner ||
@@ -108,7 +141,7 @@
         });
 
         if (!result.ok && state) {
-          render(state);
+          renderBoard(state);
         }
       });
 
@@ -138,32 +171,26 @@
       const label = document.createElement("span");
       label.textContent = "@" + player.username + " · Chờ duyệt";
 
-      const approve = createButton(
-        "✓ Duyệt",
-        async () => {
-          const result = await post(
-            "/api/admin/approve-player",
-            { username: player.username }
-          );
+      const approve = createButton("✓ Duyệt", async () => {
+        const result = await post(
+          "/api/admin/approve-player",
+          { username: player.username }
+        );
 
-          if (result.ok) {
-            alert("Đã duyệt @" + player.username);
-          }
+        if (result.ok) {
+          alert("Đã duyệt @" + player.username);
         }
-      );
+      });
 
-      const reject = createButton(
-        "✕ Từ chối",
-        async () => {
-          if (!confirm("Từ chối @" + player.username + "?")) {
-            return;
-          }
-
-          await post("/api/admin/reject-player", {
-            username: player.username
-          });
+      const reject = createButton("✕ Từ chối", async () => {
+        if (!confirm("Từ chối @" + player.username + "?")) {
+          return;
         }
-      );
+
+        await post("/api/admin/reject-player", {
+          username: player.username
+        });
+      });
 
       row.append(label, approve, reject);
       pending.appendChild(row);
@@ -192,14 +219,11 @@
       const label = document.createElement("span");
       label.textContent = "@" + player.username;
 
-      const button = createButton(
-        "Chọn đấu",
-        async () => {
-          await post("/api/admin/select", {
-            username: player.username
-          });
-        }
-      );
+      const button = createButton("Chọn đấu", async () => {
+        await post("/api/admin/select", {
+          username: player.username
+        });
+      });
 
       row.append(label, button);
       queue.appendChild(row);
@@ -247,6 +271,11 @@
   // NHẬN TRẠNG THÁI MỚI TỪ SERVER
   function render(s) {
     if (!s || !Array.isArray(s.board)) return;
+
+    const previous = state;
+
+    // Kiểm tra hiệu ứng trước khi cập nhật state
+    checkEffects(previous, s);
 
     state = s;
 
@@ -328,5 +357,4 @@
       }
     }
   );
-
 })();
