@@ -4,12 +4,11 @@
 
   const boardEl = document.getElementById("board");
   let state = null;
-  let timerInterval = null;
+  let serverClockOffset = 0;
 
   const pin = () =>
     document.getElementById("pin")?.value || "";
 
-  // HIỆU ỨNG
   function playEffect(name) {
     try {
       const effects = window.CaroEffects;
@@ -37,7 +36,6 @@
     }
   }
 
-  // GỬI YÊU CẦU ĐẾN SERVER
   async function post(path, body = {}) {
     try {
       const response = await fetch(path, {
@@ -64,7 +62,6 @@
     }
   }
 
-  // TẠO NÚT
   function createButton(label, action, className = "") {
     const button = document.createElement("button");
 
@@ -78,7 +75,7 @@
     return button;
   }
 
-  // ĐỒNG HỒ CÁT 30 GIÂY
+  // ĐỒNG HỒ CÁT
   function renderTimer() {
     const panel = document.getElementById("timerPanel");
     const owner = document.getElementById("timerOwner");
@@ -101,13 +98,13 @@
       "timer-finished"
     );
 
-    // Chưa bắt đầu hoặc đã kết thúc ván
     if (s.winner || !Number.isFinite(deadline) || deadline <= 0) {
       panel.classList.add("timer-idle");
 
       if (s.winner) {
         if (owner) owner.textContent = "🏁 VÁN ĐẤU ĐÃ KẾT THÚC";
         number.textContent = "0";
+
         if (message) {
           message.textContent =
             s.winner === "X"
@@ -117,6 +114,7 @@
       } else {
         if (owner) owner.textContent = "⏳ ĐANG CHỜ LƯỢT CHƠI";
         number.textContent = "30";
+
         if (message) message.textContent = "Chờ bắt đầu trận đấu";
       }
 
@@ -128,7 +126,10 @@
     }
 
     const isHostTurn = s.turn === "X";
-    panel.classList.add(isHostTurn ? "timer-host" : "timer-viewer");
+
+    panel.classList.add(
+      isHostTurn ? "timer-host" : "timer-viewer"
+    );
 
     if (owner) {
       owner.textContent = isHostTurn
@@ -136,10 +137,11 @@
         : `⭕ LƯỢT @${s.activePlayer || "NGƯỜI CHƠI"} (O)`;
     }
 
-    // turnDeadline là thời điểm kết thúc lượt do server gửi
-    const remainingMs = Math.max(0, deadline - Date.now());
+    const serverNow = Date.now() + serverClockOffset;
+    const remainingMs = Math.max(0, deadline - serverNow);
     const seconds = Math.ceil(remainingMs / 1000);
-    const progress = Math.max(0, Math.min(1, remainingMs / 30000));
+    const totalTime = (Number(s.turnTime) || 30) * 1000;
+    const progress = Math.max(0, Math.min(1, remainingMs / totalTime));
 
     number.textContent = String(seconds);
 
@@ -151,15 +153,9 @@
           : `Đang chờ @${s.activePlayer || "người chơi"} đánh`;
     }
 
-    if (seconds <= 5) {
-      panel.classList.add("timer-warning");
-    }
+    if (seconds <= 5) panel.classList.add("timer-warning");
+    if (seconds <= 0) panel.classList.add("timer-finished");
 
-    if (seconds <= 0) {
-      panel.classList.add("timer-finished");
-    }
-
-    // Điều khiển cát theo thời gian thực, không dùng hoạt ảnh 30 giây độc lập
     if (topSand) {
       topSand.style.transform = `scaleY(${progress})`;
     }
@@ -185,13 +181,8 @@
       cell.type = "button";
       cell.className = "cell";
 
-      if (value === "X") {
-        cell.classList.add("X", "piece-x");
-      }
-
-      if (value === "O") {
-        cell.classList.add("O", "piece-o");
-      }
+      if (value === "X") cell.classList.add("X", "piece-x");
+      if (value === "O") cell.classList.add("O", "piece-o");
 
       if (value === "X" || value === "O") {
         const stone = document.createElement("span");
@@ -211,9 +202,7 @@
           state.board[index] ||
           state.winner ||
           state.turn !== "X"
-        ) {
-          return;
-        }
+        ) return;
 
         cell.disabled = true;
 
@@ -305,7 +294,7 @@
     });
   }
 
-  // CẬP NHẬT ĐIỂM VÀ THÔNG TIN
+  // THÔNG TIN VÀ ĐIỂM
   function renderInfo(s) {
     const status = document.getElementById("status");
 
@@ -343,7 +332,7 @@
     }
   }
 
-  // NHẬN TRẠNG THÁI TỪ SERVER
+  // NHẬN TRẠNG THÁI
   function render(s) {
     if (!s || !Array.isArray(s.board)) return;
 
@@ -351,6 +340,10 @@
 
     checkEffects(previous, s);
     state = s;
+
+    if (Number.isFinite(Number(s.serverTime))) {
+      serverClockOffset = Number(s.serverTime) - Date.now();
+    }
 
     renderInfo(s);
     renderBoard(s);
@@ -366,8 +359,8 @@
     );
   }
 
-  // CẬP NHẬT ĐỒNG HỒ LIÊN TỤC TRÊN ĐIỆN THOẠI
-  timerInterval = setInterval(() => {
+  // CẬP NHẬT ĐỒNG HỒ MỖI 200 MILI GIÂY
+  setInterval(() => {
     if (state) renderTimer();
   }, 200);
 
