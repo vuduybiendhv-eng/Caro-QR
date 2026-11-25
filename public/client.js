@@ -56,6 +56,117 @@ if (soundButton) {
   };
 }
 
+// ĐỒNG HỒ CÁT 30 GIÂY
+function renderTimer() {
+  const panel = document.getElementById("timerPanel");
+  const owner = document.getElementById("timerOwner");
+  const number = document.getElementById("timerNumber");
+  const message = document.getElementById("timerMessage");
+  const topSand = document.getElementById("topSand");
+  const bottomSand = document.getElementById("bottomSand");
+  const stream = document.getElementById("sandStream");
+
+  if (!panel || !number || !state) return;
+
+  const s = state;
+  const deadline = Number(s.turnDeadline);
+
+  panel.classList.remove(
+    "timer-host",
+    "timer-viewer",
+    "timer-idle",
+    "timer-warning",
+    "timer-finished"
+  );
+
+  // Chưa bắt đầu hoặc ván đã kết thúc
+  if (s.winner || !Number.isFinite(deadline) || deadline <= 0) {
+    panel.classList.add("timer-idle");
+
+    if (s.winner) {
+      if (owner) owner.textContent = "🏁 VÁN ĐẤU ĐÃ KẾT THÚC";
+
+      number.textContent = "0";
+
+      if (message) {
+        message.textContent =
+          s.winner === "O"
+            ? "Bạn đã chiến thắng!"
+            : "Chủ LIVE chiến thắng!";
+      }
+    } else {
+      if (owner) owner.textContent = "⏳ ĐANG CHỜ LƯỢT CHƠI";
+
+      number.textContent = "30";
+
+      if (message) {
+        message.textContent = "Chờ bắt đầu trận đấu";
+      }
+    }
+
+    if (topSand) topSand.style.transform = "scaleY(1)";
+    if (bottomSand) bottomSand.style.transform = "scaleY(0.05)";
+    if (stream) stream.style.opacity = "0";
+
+    return;
+  }
+
+  const isViewerTurn = s.turn === "O";
+
+  panel.classList.add(
+    isViewerTurn ? "timer-viewer" : "timer-host"
+  );
+
+  if (owner) {
+    owner.textContent = isViewerTurn
+      ? `⭕ LƯỢT CỦA BẠN · @${s.activePlayer || username || "NGƯỜI CHƠI"}`
+      : "❌ LƯỢT CHỦ LIVE (X)";
+  }
+
+  // Tính thời gian từ thời hạn do server gửi
+  const remainingMs = Math.max(0, deadline - Date.now());
+  const seconds = Math.ceil(remainingMs / 1000);
+  const progress = Math.max(0, Math.min(1, remainingMs / 30000));
+
+  number.textContent = String(seconds);
+
+  if (message) {
+    if (seconds <= 5) {
+      message.textContent = "⚠️ Nhanh tay! Sắp hết giờ!";
+    } else if (isViewerTurn) {
+      message.textContent =
+        s.activePlayer &&
+        username &&
+        s.activePlayer.toLowerCase() === username.toLowerCase()
+          ? "Đến lượt bạn đánh quân O"
+          : `Đang chờ @${s.activePlayer || "người chơi"} đánh`;
+    } else {
+      message.textContent = "Chủ LIVE đang có lượt đánh";
+    }
+  }
+
+  if (seconds <= 5) {
+    panel.classList.add("timer-warning");
+  }
+
+  if (seconds <= 0) {
+    panel.classList.add("timer-finished");
+  }
+
+  // Cát chuyển động đồng bộ theo thời gian còn lại
+  if (topSand) {
+    topSand.style.transform = `scaleY(${progress})`;
+  }
+
+  if (bottomSand) {
+    bottomSand.style.transform = `scaleY(${1 - progress})`;
+  }
+
+  if (stream) {
+    stream.style.opacity = seconds > 0 ? "1" : "0";
+  }
+}
+
 // ĐÓNG KHUNG NHẬP TÊN
 function closeRegistration(message) {
   registered = true;
@@ -113,21 +224,17 @@ function checkGameEffects(previous, current) {
   const oldCount = previous.board.filter(Boolean).length;
   const newCount = current.board.filter(Boolean).length;
 
-  // Có nước đi mới
   if (newCount > oldCount) {
     playSound("move");
     playEffect("move");
   }
 
-  // Vừa kết thúc ván
   if (!previous.winner && current.winner) {
     playSound("win");
 
     if (current.winner === "O") {
-      // Người xem thắng
       playEffect("win", "BẠN CHIẾN THẮNG!");
     } else {
-      // Chủ LIVE thắng
       playEffect("defeat", "BẠN THUA CUỘC!");
     }
   }
@@ -137,7 +244,6 @@ function checkGameEffects(previous, current) {
 function render(s) {
   if (!s || !Array.isArray(s.board)) return;
 
-  // Không chạy hiệu ứng khi vừa tải trang
   if (!firstState) {
     checkGameEffects(state, s);
   }
@@ -177,6 +283,7 @@ function render(s) {
   }
 
   updateRegistration(s);
+  renderTimer();
 
   // VẼ BÀN CỜ
   if (!boardEl) return;
@@ -220,7 +327,9 @@ function render(s) {
       !!value ||
       !!s.winner ||
       s.turn !== "O" ||
-      !s.activePlayer;
+      !s.activePlayer ||
+      !username ||
+      s.activePlayer.toLowerCase() !== username.toLowerCase();
 
     cell.addEventListener("click", () => {
       if (!cell.disabled) {
@@ -231,6 +340,11 @@ function render(s) {
     boardEl.appendChild(cell);
   });
 }
+
+// CẬP NHẬT ĐỒNG HỒ MỖI 200 MILI GIÂY
+setInterval(() => {
+  if (state) renderTimer();
+}, 200);
 
 // NHẬN TRẠNG THÁI
 socket.on("state", render);
@@ -265,7 +379,6 @@ socket.on("connect", () => {
     statusEl.textContent = "Đã kết nối máy chủ, đang tải bàn cờ…";
   }
 
-  // Nếu đã nhập tên, đăng ký lại sau khi kết nối lại
   if (username) {
     socket.emit("viewer:register", { username });
   }
