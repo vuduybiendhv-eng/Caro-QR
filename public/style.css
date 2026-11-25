@@ -1,6 +1,6 @@
 
 /* =========================================
-   CARO LIVE - GIAO DIEN VANG DONG
+   CARO LIVE - GOLDEN WOOD EDITION
    ========================================= */
 
 :root {
@@ -8,10 +8,7 @@
   --gold-light: #ffe39a;
   --gold-dark: #a96825;
   --brown: #603519;
-  --brown-dark: #351b12;
   --cream: #fff2d8;
-  --cream-light: #fff9ed;
-  --text: #633817;
   --shadow: 0 8px 22px rgba(35, 15, 5, .28);
 }
 
@@ -36,8 +33,17 @@ body {
     linear-gradient(135deg, #59301c, #9a5525 48%, #472417);
 }
 
+img {
+  max-width: 100%;
+}
+
+button {
+  font-family: inherit;
+  -webkit-tap-highlight-color: transparent;
+}
+
 /* =========================================
-   HIỆU UNG CHIEN THANG
+   HIỆU ỨNG CHIẾN THẮNG
    ========================================= */
 
 #celebrationCanvas {
@@ -69,8 +75,13 @@ body {
   pointer-events: none;
 }
 
+#victoryBanner:empty,
+.victory-banner:empty {
+  display: none !important;
+}
+
 /* =========================================
-   KHUNG TONG
+   KHUNG TỔNG
    ========================================= */
 
 .wrap {
@@ -86,7 +97,7 @@ body {
 }
 
 /* =========================================
-   HAI NHAN VAT CHIBI
+   HAI NHÂN VẬT CHIBI
    ========================================= */
 
 .arena-players {
@@ -162,9 +173,7 @@ body {
   text-shadow: 0 2px 5px #7d431c;
 }
 
-/* =========================================
-   QUAN CO X VA O
-   ========================================= */
+/* QUÂN CỜ HIỂN THỊ TRÊN THẺ NHÂN VẬT */
 
 .stone-preview {
   display: inline-block;
@@ -187,7 +196,7 @@ body {
 }
 
 /* =========================================
-   TRANG THAI VA AM THANH
+   TRẠNG THÁI VÀ ÂM THANH
    ========================================= */
 
 .game-status {
@@ -200,6 +209,10 @@ body {
 
 .status {
   width: 100%;
+  min-height: 72px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
   padding: 18px 12px;
   border: 3px solid var(--gold);
   border-radius: 20px;
@@ -230,7 +243,7 @@ body {
 }
 
 /* =========================================
-   KHU VUC BAN CO VA SIDEBAR
+   KHU VỰC BÀN CỜ VÀ SIDEBAR
    ========================================= */
 
 .game-area {
@@ -241,9 +254,7 @@ body {
   width: 100%;
 }
 
-/* =========================================
-   THANH DIEU HUONG BEN TRAI
-   ========================================= */
+/* THANH ĐIỀU HƯỚNG */
 
 .game-nav {
   display: flex;
@@ -275,8 +286,20 @@ body {
   font-weight: 800;
 }
 
+/* CỘT GIỮA CHỨA BÀN CỜ VÀ QR */
+
+.board-column {
+  min-width: 0;
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 14px;
+  grid-column: 2;
+}
+
 /* =========================================
-   KHUNG BAN CO
+   KHUNG BÀN CỜ
    ========================================= */
 
 .board-panel {
@@ -294,7 +317,7 @@ body {
 
 .board-heading {
   width: 100%;
-  margin-bottom: 14px;
+  margin: 0 0 14px;
   color: #70401d;
   font-size: clamp(17px, 2.5vw, 25px);
   font-weight: 900;
@@ -303,7 +326,7 @@ body {
 }
 
 /* =========================================
-   LUOI CO 15 X 15
+   BÀN CỜ GỖ 15 X 15
    ========================================= */
 
 #board,
@@ -315,70 +338,136 @@ body {
   max-width: 760px;
   aspect-ratio: 1 / 1;
   overflow: hidden;
-  border: 3px solid #9a642d;
-  border-radius: 8px;
-  background: #fff0d4;
-  box-shadow: 0 4px 12px rgba(70, 35, 10, .2);
+  border: 4px solid #80501f;
+  border-radius: 9px;
+  background: linear-gradient(135deg, #d9a45f, #f2d29a, #c58b48);
+  box-shadow:
+    0 5px 14px rgba(70, 35, 10, .3),
+    inset 0 0 8px rgba(255, 245, 210, .5);
 }
 
-/* Cac o con ben trong ban co */
+/* TỪNG Ô CỜ */
+
 #board > *,
 .board > * {
+  position: relative;
   min-width: 0;
   min-height: 0;
   display: flex;
   justify-content: center;
   align-items: center;
-  border: 1px solid #a77a46;
-  background: #fff3dc;
-  color: #342116;
-  font-size: clamp(12px, 2.5vw, 30px);
+  padding: 0;
+  border: 1px solid rgba(111, 70, 30, .55);
+  border-radius: 0;
+  background: linear-gradient(145deg, #f5dfb5, #e9c58d 55%, #dcb477);
+  color: transparent;
+  font-size: 0;
   font-weight: 900;
   cursor: pointer;
   user-select: none;
   -webkit-tap-highlight-color: transparent;
 }
 
-#board > *:active,
-.board > *:active {
-  background: #f4d59d;
-}
-
-/* Quan co neu client dung class x/o */
-#board .x,
-.board .x {
-  color: #f7faff;
-  text-shadow: 0 1px 3px #596777;
-}
-
-#board .o,
-.board .o {
-  color: #111927;
-  text-shadow: 0 1px 2px #8794a3;
+#board > *:not(:disabled):active,
+.board > *:not(:disabled):active {
+  background: #f9e8c5;
 }
 
 /* =========================================
-   QR NGAY DUOI BAN CO
+   QUÂN CỜ TRÒN 3D
    ========================================= */
 
+#board .cell .stone {
+  display: block;
+  width: 76%;
+  height: 76%;
+  border-radius: 50%;
+  pointer-events: none;
+  animation: stoneAppear .22s ease-out;
+}
+
+/* X - VÀNG ĐỒNG */
+
+#board .cell.piece-x .stone {
+  background:
+    radial-gradient(circle at 32% 25%,
+      #fff8cf 0%,
+      #f7d979 18%,
+      #d99a25 48%,
+      #986018 78%,
+      #67400f 100%);
+  border: 1px solid #9a671c;
+  box-shadow:
+    0 2px 4px rgba(65, 38, 8, .45),
+    inset 0 2px 3px rgba(255, 255, 220, .75),
+    inset 0 -3px 4px rgba(95, 53, 8, .35);
+}
+
+/* O - XANH NGỌC */
+
+#board .cell.piece-o .stone {
+  background:
+    radial-gradient(circle at 32% 25%,
+      #e0fff6 0%,
+      #71e5cc 20%,
+      #159d91 53%,
+      #08645f 82%,
+      #03423f 100%);
+  border: 1px solid #08766c;
+  box-shadow:
+    0 2px 4px rgba(0, 40, 38, .45),
+    inset 0 2px 3px rgba(235, 255, 250, .75),
+    inset 0 -3px 4px rgba(0, 65, 60, .4);
+}
+
+/* HIỆU ỨNG ĐẶT QUÂN */
+
+@keyframes stoneAppear {
+  0% {
+    transform: scale(.35);
+    opacity: .4;
+  }
+  75% {
+    transform: scale(1.12);
+    opacity: 1;
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+
+#board .cell:disabled {
+  opacity: 1 !important;
+  cursor: default !important;
+}
+
+/* =========================================
+   QR CODE DƯỚI BÀN CỜ
+   ========================================= */
+
+.board-column .qr-card,
 .qr-card {
   display: flex;
   flex-direction: column;
   align-items: center;
-  width: min(250px, 100%);
-  margin: 18px auto 4px;
+  justify-content: center;
+  width: min(230px, 100%);
+  max-width: 100%;
+  margin: 10px auto 18px;
   padding: 14px;
-  border: 3px solid var(--gold);
-  border-radius: 20px;
-  background: linear-gradient(145deg, #fff4dc, #f0c47e);
-  color: var(--brown);
+  border: 3px solid #f5ca62;
+  border-radius: 22px;
+  background: linear-gradient(145deg, #fff5df, #e9bd78);
+  color: #70401d;
   text-align: center;
-  box-shadow: 0 5px 14px rgba(60, 30, 10, .2);
+  box-shadow:
+    0 0 0 3px rgba(255, 224, 150, .2),
+    0 8px 20px rgba(40, 18, 5, .3);
 }
 
 .qr-card h3 {
-  margin: 3px 0 10px;
-  color: #75421b;
+  margin: 0 0 10px;
+  color: #70401d;
   font-size: 16px;
   font-weight: 900;
   line-height: 1.4;
@@ -386,28 +475,31 @@ body {
 
 .qr-card img {
   display: block;
-  width: 160px !important;
-  height: 160px !important;
+  width: 150px !important;
+  height: 150px !important;
   max-width: 100%;
-  object-fit: contain;
+  margin: 8px auto;
   padding: 5px;
-  border-radius: 12px;
+  border: 2px solid #d69a39;
+  border-radius: 10px;
   background: white;
+  object-fit: contain;
 }
 
 .qr-card p {
-  margin: 10px 0 2px;
+  margin: 8px 0 0;
   color: #70401d;
-  font-size: 14px;
-  font-weight: 700;
+  font-size: 13px;
+  font-weight: 800;
   line-height: 1.4;
 }
 
 /* =========================================
-   CAC BANG BEN PHAI
+   SIDEBAR
    ========================================= */
 
 .game-sidebar {
+  grid-column: 3;
   min-width: 0;
   display: flex;
   flex-direction: column;
@@ -497,12 +589,22 @@ body {
 }
 
 #notice {
+  display: block;
   margin-top: 8px;
   font-weight: 700;
+  overflow-wrap: anywhere;
+}
+
+/* ĐÃ ĐĂNG KÝ: GIỮ THÔNG BÁO */
+
+.caro-layout > .join.registration-done label,
+.caro-layout > .join.registration-done .joinrow,
+.caro-layout > .join.registration-done > p {
+  display: none !important;
 }
 
 /* =========================================
-   KHUNG CHAT
+   CHAT VÀ FOOTER
    ========================================= */
 
 .chat-panel {
@@ -522,10 +624,6 @@ body {
   font-size: 14px;
 }
 
-/* =========================================
-   CHAN TRANG
-   ========================================= */
-
 footer {
   padding: 14px 8px;
   color: #ffe8b2;
@@ -534,7 +632,7 @@ footer {
 }
 
 /* =========================================
-   HIEN THI TREN DIEN THOAI
+   ĐIỆN THOẠI
    ========================================= */
 
 @media (max-width: 650px) {
@@ -543,442 +641,16 @@ footer {
   }
 
   .caro-layout {
-    gap: 14px;
-  }
-
-  .arena-players {
-    grid-template-columns: minmax(0, 1fr) 28px minmax(0, 1fr);
-    gap: 5px;
-  }
-
-  .player-card {
-    min-height: 112px;
-    gap: 6px;
-    padding: 7px;
-    border-width: 2px;
-    border-radius: 20px;
-  }
-
-  .avatar3d {
-    flex: 0 0 66px;
-    width: 66px;
-    height: 82px;
-    border-radius: 14px;
-  }
-
-  .player-meta small {
-    font-size: 9px;
-  }
-
-  .player-meta strong {
-    font-size: 23px;
-  }
-
-  .player-card .stone-preview {
-    flex-basis: 24px;
-    width: 24px;
-    height: 24px;
-  }
-
-  .versus {
-    font-size: 15px;
-  }
-
-  .game-area {
-    grid-template-columns: 66px minmax(0, 1fr);
-    align-items: start;
-    gap: 8px;
-  }
-
-  .game-nav {
-    grid-column: 1;
-    grid-row: 1;
     gap: 10px;
-    position: static;
-  }
-
-  .nav-item {
-    min-height: 92px;
-    padding: 7px 2px;
-    border-width: 2px;
-    border-radius: 17px;
-    font-size: 25px;
-  }
-
-  .nav-item span {
-    font-size: 12px;
-  }
-
-  .board-panel {
-    grid-column: 2;
-    grid-row: 1;
-    padding: 10px;
-    border-width: 3px;
-    border-radius: 24px;
-  }
-
-  .board-heading {
-    margin-bottom: 10px;
-    font-size: 18px;
-  }
-
-  #board,
-  .board {
-    width: 100%;
-    aspect-ratio: 1 / 1;
-  }
-
-  #board > *,
-  .board > * {
-    border-width: 1px;
-    font-size: clamp(10px, 4vw, 21px);
-  }
-
-  .qr-card {
-    width: min(230px, 100%);
-    margin-top: 16px;
-    padding: 11px;
-  }
-
-  .qr-card img {
-    width: 150px !important;
-    height: 150px !important;
-  }
-
-  .game-sidebar {
-    grid-column: 1 / -1;
-    grid-row: 2;
-    display: grid;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 9px;
-  }
-
-  .sidebar-card {
-    padding: 11px 8px;
-    border-width: 2px;
-    border-radius: 17px;
-  }
-
-  .sidebar-card h2 {
-    font-size: 14px;
-  }
-
-  .sidebar-card p,
-  .turn-item {
-    font-size: 12px;
-  }
-
-  .join {
-    padding: 13px;
-  }
-
-  .joinrow button {
-    padding: 10px 12px;
-  }
-}
-
-/* =========================================
-   DIEN THOAI MAN HINH RAT NHO
-   ========================================= */
-
-@media (max-width: 390px) {
-  body {
-    padding: 5px;
   }
 
   .arena-players {
-    grid-template-columns: minmax(0, 1fr) 20px minmax(0, 1fr);
-    gap: 3px;
-  }
-
-  .player-card {
-    padding: 5px;
-  }
-
-  .avatar3d {
-    flex-basis: 55px;
-    width: 55px;
-    height: 70px;
-  }
-
-  .player-meta b {
-    font-size: 12px;
-  }
-
-  .player-meta small {
-    font-size: 8px;
-  }
-
-  .player-card .stone-preview {
-    display: none;
-  }
-
-  .game-area {
-    grid-template-columns: 52px minmax(0, 1fr);
-    gap: 5px;
-  }
-
-  .nav-item {
-    min-height: 78px;
-    font-size: 22px;
-  }
-
-  .nav-item span {
-    font-size: 10px;
-  }
-
-  .board-panel {
-    padding: 7px;
-  }
-
-  .board-heading {
-    font-size: 15px;
-  }
-
-  .game-sidebar {
-    grid-template-columns: 1fr;
-  }
-
-  .qr-card img {
-    width: 140px !important;
-    height: 140px !important;
-  }
-
-  .joinrow {
-    flex-direction: column;
-  }
-
-  .joinrow button {
-    min-height: 44px;
-  }
-}
-
-/* =========================================
-   AN TOAN CHO MAN HINH NGANG
-   ========================================= */
-
-img {
-  max-width: 100%;
-}
-
-button {
-  -webkit-tap-highlight-color: transparent;
-}
-
-button:active {
-  transform: scale(.98);
-}
-
-/* COT TRUNG TAM CHUA BAN CO VA QR */
-.board-column {
-  min-width: 0;
-  width: 100%;
-  display: flex;
-  flex-direction: column;
-  align-items: stretch;
-  gap: 14px;
-}
-
-/* BAN CO KHONG BI QR CHE */
-.board-column .board-panel {
-  width: 100%;
-  min-width: 0;
-}
-
-/* QR NAM RIENG BEN DUOI */
-.board-column .qr-card {
-  width: min(230px, 100%);
-  margin: 0 auto 16px;
-  padding: 12px;
-  text-align: center;
-}
-
-.board-column .qr-card img {
-  display: block;
-  width: 150px !important;
-  height: 150px !important;
-  max-width: 100%;
-  margin: 10px auto;
-  object-fit: contain;
-}
-
-/* DIEN THOAI */
-@media (max-width: 650px) {
-  .game-area {
-    grid-template-columns: 66px minmax(0, 1fr);
-  }
-
-  .board-column {
-    grid-column: 2;
-    grid-row: 1;
-  }
-
-  .game-sidebar {
-    grid-column: 1 / -1;
-    grid-row: 2;
-  }
-}
-
-@media (max-width: 390px) {
-  .game-area {
-    grid-template-columns: 52px minmax(0, 1fr);
-  }
-}
-
-/* KHUNG QR RIENG BIET */
-.board-column .qr-card {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  width: 230px;
-  max-width: 95%;
-  margin: 18px auto 24px;
-  padding: 16px;
-  border: 4px solid #f5ca62;
-  border-radius: 24px;
-  background: linear-gradient(145deg, #fff5df, #e9bd78);
-  box-shadow:
-    0 0 0 4px rgba(255, 224, 150, .2),
-    0 8px 20px rgba(40, 18, 5, .3);
-  text-align: center;
-}
-
-.board-column .qr-card h3 {
-  margin: 0 0 12px;
-  color: #70401d;
-  font-size: 17px;
-  font-weight: 900;
-  line-height: 1.4;
-}
-
-.board-column .qr-card img {
-  display: block;
-  width: 165px !important;
-  height: 165px !important;
-  padding: 8px;
-  border: 3px solid #d69a39;
-  border-radius: 14px;
-  background: #fff;
-  object-fit: contain;
-}
-
-.board-column .qr-card p {
-  margin: 12px 0 0;
-  color: #70401d;
-  font-size: 14px;
-  font-weight: 800;
-  line-height: 1.4;
-}
-/* An khung victory khi chua co thong bao */
-#victoryBanner:empty {
-  display: none !important;
-}
-
-.victory-banner:empty {
-  display: none !important;
-}
-
-/* Trang thai hien ro rang */
-.game-status .status {
-  position: relative;
-  z-index: 2;
-  min-height: 72px;
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  text-align: center;
-}w
-/* QR nam tron trong khung */
-.board-column .qr-card {
-  width: 210px;
-  max-width: calc(100% - 16px);
-  margin: 14px auto;
-  padding: 12px;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  overflow: hidden;
-  box-sizing: border-box;
-  border: 3px solid #f5ca62;
-  border-radius: 22px;
-  background: linear-gradient(145deg, #fff5df, #e9bd78);
-  text-align: center;
-}
-
-.board-column .qr-card h3 {
-  margin: 0 0 8px;
-  color: #70401d;
-  font-size: 15px;
-  line-height: 1.35;
-}
-
-.board-column .qr-card img {
-  display: block;
-  width: 135px !important;
-  height: 135px !important;
-  max-width: 100%;
-  padding: 5px;
-  box-sizing: border-box;
-  object-fit: contain;
-  background: white;
-  border: 2px solid #d69a39;
-  border-radius: 10px;
-}
-
-.board-column .qr-card p {
-  margin: 8px 0 0;
-  color: #70401d;
-  font-size: 12px;
-  font-weight: 800;
-  line-height: 1.4;
-}
-
-/* ===================================
-   CARO LIVE - CHE DO MOT MAN HINH
-   =================================== */
-
-@media (max-width: 650px) {
-  html,
-  body {
-    width: 100%;
-    height: 100%;
-    min-height: 0;
-    margin: 0;
-    padding: 0;
-    overflow: hidden !important;
-  }
-
-  .wrap {
-    width: 100%;
-    max-width: 100%;
-    height: 100vh;
-    height: 100dvh;
-    max-height: 100dvh;
-    margin: 0 auto;
-    padding: 5px 7px;
-    overflow: hidden;
-  }
-
-  .caro-layout {
-    height: 100%;
-    display: flex;
-    flex-direction: column;
-    justify-content: space-between;
-    gap: 4px;
-    overflow: hidden;
-  }
-
-  /* NHAN VAT */
-  .arena-players {
-    flex: 0 0 auto;
-    grid-template-columns: minmax(0, 1fr) 20px minmax(0, 1fr);
+    grid-template-columns: minmax(0, 1fr) 22px minmax(0, 1fr);
     gap: 4px;
   }
 
   .player-card {
-    min-height: 72px;
+    min-height: 76px;
     padding: 5px;
     gap: 5px;
     border-width: 2px;
@@ -1017,14 +689,12 @@ button:active {
     font-size: 12px;
   }
 
-  /* TRANG THAI */
   .game-status {
-    flex: 0 0 auto;
     gap: 4px;
   }
 
   .game-status .status {
-    min-height: 36px;
+    min-height: 38px;
     padding: 5px;
     border-width: 2px;
     border-radius: 12px;
@@ -1032,169 +702,167 @@ button:active {
   }
 
   #soundToggle {
-    min-height: 30px;
+    min-height: 34px;
     padding: 5px 14px;
     border-radius: 10px;
     font-size: 13px;
   }
 
-  /* KHU VUC CHINH */
   .game-area {
-    flex: 1 1 auto;
-    min-height: 0;
-    display: grid;
-    grid-template-columns: minmax(0, 1fr);
-    grid-template-rows: minmax(0, 1fr) auto;
-    gap: 4px;
-    overflow: hidden;
+    grid-template-columns: 52px minmax(0, 1fr);
+    align-items: start;
+    gap: 6px;
   }
 
   .game-nav {
-    display: none !important;
-  }
-
-  /* BAN CO */
-  .board-column {
     grid-column: 1;
     grid-row: 1;
-    min-height: 0;
-    width: 100%;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    overflow: hidden;
+    position: static;
+    gap: 8px;
+  }
+
+  .nav-item {
+    min-height: 76px;
+    padding: 6px 2px;
+    border-width: 2px;
+    border-radius: 14px;
+    font-size: 22px;
+  }
+
+  .nav-item span {
+    font-size: 10px;
+  }
+
+  .board-column {
+    grid-column: 2;
+    grid-row: 1;
+    min-width: 0;
+    gap: 8px;
   }
 
   .board-panel {
-    width: min(100%, calc(100vw - 14px));
-    max-height: 100%;
-    min-height: 0;
-    padding: 5px;
+    width: 100%;
+    padding: 7px;
     border-width: 2px;
-    border-radius: 15px;
-    gap: 3px;
+    border-radius: 16px;
   }
 
   .board-heading {
-    flex: 0 0 auto;
-    margin: 0 0 3px;
-    font-size: 14px;
+    margin-bottom: 7px;
+    font-size: 15px;
   }
 
   #board,
   .board {
-    width: min(100%, calc(100dvh - 290px));
-    max-width: 100%;
+    width: 100%;
     aspect-ratio: 1 / 1;
-    flex: 0 1 auto;
   }
 
   #board > *,
   .board > * {
-    min-width: 0;
-    min-height: 0;
     border-width: 1px;
-    font-size: clamp(8px, 2.5vw, 15px);
   }
 
-  /* QR NHO GON NGAY DUOI BAN CO */
-  .qr-side-card {
-    grid-column: 1;
-    grid-row: 2;
-    width: min(100%, 250px);
-    min-height: 48px;
-    margin: 2px auto;
-    padding: 4px 8px;
-    display: flex;
-    flex-direction: row;
-    justify-content: center;
-    align-items: center;
-    gap: 8px;
-    border-width: 2px;
-    border-radius: 12px;
+  #board .cell .stone {
+    width: 78%;
+    height: 78%;
   }
 
-  .qr-side-card h3 {
-    margin: 0;
+  .board-column .qr-card {
+    width: min(230px, 95%);
+    margin: 5px auto 12px;
+    padding: 10px;
+  }
+
+  .board-column .qr-card h3 {
+    font-size: 14px;
+  }
+
+  .board-column .qr-card img {
+    width: 135px !important;
+    height: 135px !important;
+  }
+
+  .board-column .qr-card p {
     font-size: 11px;
   }
 
-  .qr-side-card img {
-    width: 42px;
-    height: 42px;
-    padding: 2px;
+  .game-sidebar {
+    grid-column: 1 / -1;
+    grid-row: 2;
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px;
   }
 
-  .qr-side-card p {
-    margin: 0;
-    font-size: 9px;
+  .sidebar-card {
+    padding: 10px 8px;
+    border-width: 2px;
+    border-radius: 15px;
   }
 
-  /* AN CAC KHUNG PHU DE KHONG PHAI CUON */
-  .game-sidebar,
-  .join,
+  .sidebar-card h2 {
+    font-size: 14px;
+  }
+
+  .sidebar-card p,
+  .turn-item {
+    font-size: 12px;
+  }
+
+  .caro-layout > .join {
+    display: flex;
+    width: 100%;
+    max-width: 650px;
+    margin: 8px auto;
+    padding: 12px;
+    flex-direction: column;
+  }
+
+  .joinrow {
+    display: flex;
+    gap: 8px;
+  }
+
+  .joinrow input,
+  .joinrow button {
+    display: block;
+    min-width: 0;
+  }
+
+  .joinrow button {
+    padding: 10px 12px;
+  }
+
   .chat-panel,
   footer {
-    display: none !important;
+    display: none;
   }
 }
 
-/* MAN HINH THAP */
-@media (max-width: 650px) and (max-height: 700px) {
+/* =========================================
+   ĐIỆN THOẠI RẤT NHỎ
+   ========================================= */
+
+@media (max-width: 390px) {
+  body {
+    padding: 5px;
+  }
+
+  .arena-players {
+    grid-template-columns: minmax(0, 1fr) 18px minmax(0, 1fr);
+    gap: 3px;
+  }
+
+  .player-card {
+    min-height: 64px;
+    padding: 4px;
+  }
+
   .avatar3d {
     flex-basis: 40px;
     width: 40px;
     height: 48px;
-  }
-
-  .player-card {
-    min-height: 62px;
-  }
-
-  #board,
-  .board {
-    width: min(100%, calc(100dvh - 260px));
-  }
-
-  .qr-side-card img {
-    width: 34px;
-    height: 34px;
-  }
-}
-
-/* CARO LIVE - TOI UU KHONG THAY DOI KICH THUOC BAN CO */
-
-@media (max-width: 650px) {
-
-  /* Giu nguyen kich thuoc ban co */
-  .board-panel,
-  #board,
-  .board,
-  .board-heading {
-    /* Khong thay doi kich thuoc ban co */
-  }
-
-  /* Thu gon hai the nhan vat */
-  .arena-players {
-    gap: 4px;
-    margin-bottom: 2px;
-  }
-
-  .player-card {
-    min-height: 62px;
-    padding: 4px;
-    gap: 5px;
-    border-radius: 13px;
-  }
-
-  .avatar3d {
-    width: 42px;
-    height: 50px;
-    flex-basis: 42px;
-  }
-
-  .player-meta {
-    gap: 1px;
   }
 
   .player-meta b {
@@ -1206,117 +874,75 @@ button:active {
   }
 
   .player-meta strong {
-    font-size: 16px;
+    font-size: 15px;
   }
 
-  .player-card .stone-preview {
-    display: none;
-  }
-
-  .versus {
-    font-size: 12px;
-  }
-
-  /* Thu gon trang thai */
-  .game-status {
-    gap: 3px;
-  }
-
-  .game-status .status {
-    min-height: 34px;
-    padding: 4px 8px;
-    font-size: 13px;
-  }
-
-  /* Thu gon nut am thanh */
-  #soundToggle {
-    min-height: 30px;
-    padding: 4px 13px;
-    font-size: 12px;
-  }
-
-  .soundbar {
-    margin: 0;
-  }
-
-  /* Giu nguyen ban co, chi thu gon khoang cach */
   .game-area {
-    gap: 3px;
-  }
-
-  .board-column {
+    grid-template-columns: 44px minmax(0, 1fr);
     gap: 5px;
   }
 
-  /* QR nam ngang, khung rieng */
-  .board-column .qr-card,
-  .qr-side-card {
-    width: min(280px, 90%);
-    min-height: 100px;
-    max-height: none;
-    margin: 4px auto;
-    padding: 8px 12px;
-    display: grid;
-    grid-template-columns: 1fr 90px;
-    grid-template-rows: auto auto;
-    align-items: center;
-    justify-items: center;
-    gap: 3px 8px;
-    box-sizing: border-box;
-    overflow: visible;
-    border: 3px solid #f5ca62;
-    border-radius: 17px;
-    background: linear-gradient(145deg, #fff5df, #e9bd78);
-    color: #70401d;
-    text-align: center;
+  .nav-item {
+    min-height: 68px;
+    font-size: 20px;
   }
 
-  .board-column .qr-card h3,
-  .qr-side-card h3 {
-    grid-column: 1;
-    grid-row: 1;
-    margin: 0;
-    font-size: 12px;
-    line-height: 1.3;
+  .nav-item span {
+    font-size: 9px;
   }
 
-  .board-column .qr-card img,
-  .qr-side-card img {
-    grid-column: 2;
-    grid-row: 1 / 3;
-    width: 86px !important;
-    height: 86px !important;
-    max-width: 100%;
-    padding: 3px;
-    margin: 0;
-    box-sizing: border-box;
-    object-fit: contain;
-    background: white;
-    border: 2px solid #d69a39;
-    border-radius: 8px;
+  .board-panel {
+    padding: 5px;
   }
 
-  .board-column .qr-card p,
-  .qr-side-card p {
-    grid-column: 1;
-    grid-row: 2;
-    margin: 0;
-    font-size: 10px;
-    line-height: 1.3;
-    font-weight: 800;
+  .board-heading {
+    font-size: 13px;
   }
 
-  /* An cac muc phu tren dien thoai */
-  .game-sidebar,
-  .join,
-  .chat-panel,
-  footer {
-    display: none !important;
+  .game-sidebar {
+    grid-template-columns: 1fr;
+  }
+
+  .board-column .qr-card img {
+    width: 125px !important;
+    height: 125px !important;
+  }
+
+  .joinrow {
+    flex-direction: column;
+  }
+
+  .joinrow button {
+    min-height: 44px;
   }
 }
 
 /* =========================================
-   SUA GIAO DIEN TRANG QUAN TRI TREN DIEN THOAI
+   MÀN HÌNH THẤP
+   ========================================= */
+
+@media (max-width: 650px) and (max-height: 700px) {
+  .avatar3d {
+    flex-basis: 38px;
+    width: 38px;
+    height: 46px;
+  }
+
+  .player-card {
+    min-height: 58px;
+  }
+
+  .game-status .status {
+    min-height: 32px;
+  }
+
+  #soundToggle {
+    min-height: 29px;
+  }
+}
+
+/* =========================================
+   TRANG QUẢN TRỊ TRÊN ĐIỆN THOẠI
    ========================================= */
 
 @media (max-width: 650px) {
@@ -1386,135 +1012,4 @@ button:active {
   main.admin section {
     margin-bottom: 14px;
   }
-}
-
-/* HIỆN LẠI KHU VỰC ĐĂNG KÝ TRÊN ĐIỆN THOẠI */
-@media (max-width: 650px) {
-  .join {
-    display: flex !important;
-    flex-direction: column !important;
-    visibility: visible !important;
-    opacity: 1 !important;
-    height: auto !important;
-    overflow: visible !important;
-  }
-
-  .join input,
-  .join button {
-    display: block !important;
-    visibility: visible !important;
-    opacity: 1 !important;
-  }
-}
-
-/* =========================================
-   CARO LIVE - FIX QR VA KHUNG DANG KY
-   ========================================= */
-
-@media (max-width: 650px) {
-  html,
-  body {
-    height: auto !important;
-    min-height: 100% !important;
-    overflow-x: hidden !important;
-    overflow-y: auto !important;
-  }
-
-  .wrap.caro-layout {
-    height: auto !important;
-    min-height: 100dvh !important;
-    max-height: none !important;
-    overflow: visible !important;
-    display: flex !important;
-    flex-direction: column !important;
-    justify-content: flex-start !important;
-    gap: 10px !important;
-    padding-bottom: 18px !important;
-  }
-
-  .game-area {
-    flex: none !important;
-    min-height: auto !important;
-    grid-template-rows: auto !important;
-    overflow: visible !important;
-  }
-
-  .board-column {
-    min-height: auto !important;
-    height: auto !important;
-    overflow: visible !important;
-    justify-content: flex-start !important;
-    gap: 10px !important;
-  }
-
-  .board-panel {
-    flex: none !important;
-    width: 100% !important;
-    max-height: none !important;
-  }
-
-  /* QR luôn nằm dưới bàn cờ */
-  .board-column .qr-card {
-    display: flex !important;
-    position: relative !important;
-    width: min(230px, 90%) !important;
-    height: auto !important;
-    min-height: 0 !important;
-    max-height: none !important;
-    margin: 10px auto !important;
-    padding: 12px !important;
-    overflow: visible !important;
-    flex-direction: column !important;
-  }
-
-  .board-column .qr-card img {
-    display: block !important;
-    width: 145px !important;
-    height: 145px !important;
-    margin: 8px auto !important;
-  }
-
-  /* Khung đăng ký nằm dưới QR */
-  .caro-layout > .join {
-    display: flex !important;
-    position: relative !important;
-    width: 100% !important;
-    height: auto !important;
-    max-width: 650px !important;
-    margin: 8px auto !important;
-    padding: 12px !important;
-    flex-direction: column !important;
-    overflow: visible !important;
-  }
-
-  .joinrow {
-    display: flex !important;
-  }
-
-  .joinrow input,
-  .joinrow button {
-    display: block !important;
-  }
-
-  /* Giữ thông báo sau khi đăng ký */
-  #notice {
-    display: block !important;
-    visibility: visible !important;
-    min-height: 20px;
-    text-align: center;
-    overflow-wrap: anywhere;
-  }
-
-  .game-sidebar,
-  .chat-panel,
-  footer {
-    display: none !important;
-  }
-}
-
-/* Sau khi đăng ký: chỉ giữ thông báo */
-.caro-layout > .join.registration-done label,
-.caro-layout > .join.registration-done .joinrow,
-.caro-layout > .join.registration-done > p {
-  display: none !important;
 }
