@@ -1232,3 +1232,19 @@ footer {
     font-size: 12px;
   }
 }
+
+/* Dong bo dong ho cat theo thoi gian tu server */
+#topSand,
+#bottomSand {
+  animation: none !important;
+  transition: transform 0.2s linear;
+  transform-box: fill-box;
+}
+
+#topSand {
+  transform-origin: center top;
+}
+
+#bottomSand {
+  transform-origin: center bottom;
+}
