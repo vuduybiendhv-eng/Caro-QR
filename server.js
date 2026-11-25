@@ -71,7 +71,7 @@ function stopTurnTimer() {
   lastBroadcastSecond = -1;
 }
 
-// TẠO TRẠNG THÁI CÔNG KHAI
+// TRẠNG THÁI CÔNG KHAI
 function publicState() {
   return {
     roomName: ROOM_NAME,
@@ -84,6 +84,7 @@ function publicState() {
     turnTime: TURN_TIME,
     remainingSeconds: remainingSeconds(),
     turnDeadline,
+    serverTime: Date.now(),
 
     queue: queue.map(({ username, gift, at }) => ({
       username,
@@ -101,7 +102,7 @@ function publicState() {
   };
 }
 
-// GỬI TRẠNG THÁI ĐẾN HAI ĐIỆN THOẠI
+// GỬI TRẠNG THÁI ĐẾN TẤT CẢ ĐIỆN THOẠI
 function broadcast() {
   io.emit("state", publicState());
 }
@@ -112,7 +113,7 @@ setInterval(() => {
 
   const remaining = remainingSeconds();
 
-  // HẾT 30 GIÂY: TỰ ĐỘNG THUA
+  // HẾT GIỜ: TỰ ĐỘNG THUA
   if (Date.now() >= turnDeadline) {
     const timedOutTurn = turn;
 
@@ -150,7 +151,7 @@ function cleanUsername(value) {
     .slice(0, 40);
 }
 
-// KIỂM TRA TÊN ĐÃ ĐƯỢC SỬ DỤNG CHƯA
+// KIỂM TRA TÊN ĐÃ ĐƯỢC SỬ DỤNG
 function existsAnywhere(username) {
   const key = username.toLowerCase();
 
