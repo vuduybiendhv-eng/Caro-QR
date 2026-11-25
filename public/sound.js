@@ -3,12 +3,13 @@
   let enabled = false;
 
   const audio = {
-    move: new Audio(),
-    join: new Audio(),
-    win: new Audio("https://sfxmint.com/dl/baby-babble-09.mp3"),
-    defeat: new Audio("https://sfxmint.com/dl/baby-crying-03.mp3"),
-    reset: new Audio()
+    win: new Audio("/win.mp3"),
+    defeat: new Audio("/defeat.mp3")
   };
+
+  // ÂM LƯỢNG TỐI ĐA
+  audio.win.volume = 1.0;
+  audio.defeat.volume = 1.0;
 
   audio.win.preload = "auto";
   audio.defeat.preload = "auto";
@@ -18,12 +19,14 @@
 
     try {
       const sound = audio[name];
+
       sound.pause();
       sound.currentTime = 0;
+      sound.volume = 1.0;
 
       const result = sound.play();
 
-      if (result && typeof result.catch === "function") {
+      if (result) {
         result.catch(error => {
           console.warn("Không phát được âm thanh:", error);
         });
@@ -43,11 +46,9 @@
       return enabled;
     },
 
-    move() {
-      // Tiếng đặt quân
-    },
-
+    move() {},
     join() {},
+    reset() {},
 
     win() {
       play("win");
@@ -55,8 +56,6 @@
 
     defeat() {
       play("defeat");
-    },
-
-    reset() {}
+    }
   };
 })();
