@@ -1248,3 +1248,69 @@ footer {
 #bottomSand {
   transform-origin: center bottom;
 }
+
+/* DONG HO CAT MINI - CARO LIVE */
+.timer-section {
+  max-width: 190px;
+  padding: 8px;
+  margin: 8px auto;
+  border-width: 2px;
+  border-radius: 14px;
+}
+
+.timer-heading {
+  font-size: 11px;
+}
+
+.hourglass-wrap {
+  width: 48px;
+  height: 72px;
+  margin: 4px auto 0;
+}
+
+.timer-number {
+  margin-top: 0;
+  font-size: 36px;
+  line-height: 1;
+}
+
+.timer-unit {
+  margin-top: 3px;
+  font-size: 9px;
+  letter-spacing: 1px;
+}
+
+.timer-message {
+  margin-top: 5px;
+  font-size: 10px;
+}
+
+@media (max-width: 650px) {
+  .timer-section {
+    max-width: 160px;
+    padding: 6px;
+    margin: 6px auto;
+  }
+
+  .timer-heading {
+    font-size: 10px;
+  }
+
+  .hourglass-wrap {
+    width: 40px;
+    height: 60px;
+  }
+
+  .timer-number {
+    font-size: 32px;
+  }
+
+  .timer-unit {
+    font-size: 8px;
+  }
+
+  .timer-message {
+    font-size: 9px;
+    margin-top: 4px;
+  }
+}
