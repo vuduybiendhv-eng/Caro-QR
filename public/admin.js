@@ -5,7 +5,7 @@ const boardEl = document.getElementById("board");
 let state = null;
 let firstState = true;
 
-const pin = () => document.getElementById("pin").value;
+const pin = () => document.getElementById("pin")?.value || "";
 
 const soundButton = document.getElementById("soundToggle");
 
@@ -21,27 +21,136 @@ if (soundButton) {
   };
 }
 
-// GUI YEU CAU LEN MAY CHU
+// GỬI YÊU CẦU LÊN MÁY CHỦ
 async function post(path, body = {}) {
-  const response = await fetch(path, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      "x-admin-pin": pin()
-    },
-    body: JSON.stringify(body)
-  });
+  try {
+    const response = await fetch(path, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "x-admin-pin": pin()
+      },
+      body: JSON.stringify(body)
+    });
 
-  const data = await response.json();
+    const data = await response.json();
 
-  if (!response.ok) {
-    alert(data.error || "Có lỗi xảy ra.");
+    if (!response.ok) {
+      alert(data.error || "Có lỗi xảy ra.");
+      return data;
+    }
+
+    return data;
+  } catch (error) {
+    alert("Không kết nối được máy chủ. Hãy thử lại.");
+    return { ok: false };
   }
-
-  return data;
 }
 
-// HIEN THI BAN CO VA TRANG THAI
+// TẠO DÒNG NGƯỜI CHƠI
+function createPlayerRow(player, type) {
+  const row = document.createElement("div");
+  row.className = "queueitem";
+
+  const label = document.createElement("span");
+  label.textContent = `@${player.username}`;
+
+  row.appendChild(label);
+
+  if (type === "pending") {
+    const approveButton = document.createElement("button");
+    approveButton.type = "button";
+    approveButton.textContent = "✓ Duyệt";
+
+    approveButton.onclick = async () => {
+      approveButton.disabled = true;
+
+      const result = await post("/api/admin/approve-player", {
+        username: player.username
+      });
+
+      if (!result.ok) approveButton.disabled = false;
+    };
+
+    const rejectButton = document.createElement("button");
+    rejectButton.type = "button";
+    rejectButton.textContent = "✕ Từ chối";
+
+    rejectButton.onclick = async () => {
+      if (!confirm(`Từ chối yêu cầu của @${player.username}?`)) return;
+
+      rejectButton.disabled = true;
+
+      const result = await post("/api/admin/reject-player", {
+        username: player.username
+      });
+
+      if (!result.ok) rejectButton.disabled = false;
+    };
+
+    row.append(approveButton, rejectButton);
+  }
+
+  if (type === "approved") {
+    const button = document.createElement("button");
+    button.type = "button";
+    button.textContent = "Chọn đấu";
+
+    button.onclick = () => {
+      post("/api/admin/select", {
+        username: player.username
+      });
+    };
+
+    row.appendChild(button);
+  }
+
+  return row;
+}
+
+// HIỂN THỊ DANH SÁCH
+function renderLists(s) {
+  const pendingEl = document.getElementById("pendingQueue");
+  const queueEl = document.getElementById("queue");
+
+  // NGƯỜI XEM ĐANG CHỜ DUYỆT
+  if (pendingEl) {
+    pendingEl.innerHTML = "";
+
+    const pending = Array.isArray(s.pendingQueue)
+      ? s.pendingQueue
+      : [];
+
+    if (!pending.length) {
+      pendingEl.textContent = "Chưa có yêu cầu đăng ký mới.";
+    } else {
+      pending.forEach(player => {
+        pendingEl.appendChild(
+          createPlayerRow(player, "pending")
+        );
+      });
+    }
+  }
+
+  // NGƯỜI ĐÃ ĐƯỢC DUYỆT
+  if (queueEl) {
+    queueEl.innerHTML = "";
+
+    const queue = Array.isArray(s.queue) ? s.queue : [];
+
+    if (!queue.length) {
+      queueEl.textContent = "Chưa có người chơi đã được duyệt.";
+    } else {
+      queue.forEach(player => {
+        queueEl.appendChild(
+          createPlayerRow(player, "approved")
+        );
+      });
+    }
+  }
+}
+
+// HIỂN THỊ BÀN CỜ VÀ TRẠNG THÁI
 function render(s) {
   if (!s || !Array.isArray(s.board)) return;
 
@@ -49,7 +158,11 @@ function render(s) {
     const oldCount = state.board.filter(Boolean).length;
     const newCount = s.board.filter(Boolean).length;
 
-    if (s.queue && state.queue && s.queue.length > state.queue.length) {
+    if (
+      s.queue &&
+      state.queue &&
+      s.queue.length > state.queue.length
+    ) {
       CaroSound.join();
     }
 
@@ -57,7 +170,6 @@ function render(s) {
       CaroSound.move();
     }
 
-    // CHU LIVE LA QUAN X
     if (!state.winner && s.winner) {
       CaroSound.win();
 
@@ -86,7 +198,7 @@ function render(s) {
       : `Lượt: ${s.turn}`;
   }
 
-  // VE BAN CO
+  // VẼ BÀN CỜ
   if (boardEl) {
     boardEl.innerHTML = "";
 
@@ -114,42 +226,11 @@ function render(s) {
     });
   }
 
-  // DANH SACH NGUOI CHO
-  const queueEl = document.getElementById("queue");
-
-  if (queueEl) {
-    queueEl.innerHTML = "";
-
-    const queue = Array.isArray(s.queue) ? s.queue : [];
-
-    if (!queue.length) {
-      queueEl.textContent = "Chưa có người tặng quà hợp lệ.";
-    }
-
-    queue.forEach(player => {
-      const row = document.createElement("div");
-      row.className = "queueitem";
-
-      const label = document.createElement("span");
-      label.textContent = `@${player.username} · ${player.gift}`;
-
-      const button = document.createElement("button");
-      button.type = "button";
-      button.textContent = "Chọn đấu";
-
-      button.onclick = () => {
-        post("/api/admin/select", {
-          username: player.username
-        });
-      };
-
-      row.append(label, button);
-      queueEl.appendChild(row);
-    });
-  }
+  // CẬP NHẬT HAI DANH SÁCH
+  renderLists(s);
 }
 
-// NHAN TRANG THAI TU MAY CHU
+// NHẬN TRẠNG THÁI TỪ MÁY CHỦ
 socket.on("state", render);
 
 socket.on("connect", () => {
@@ -176,43 +257,31 @@ socket.on("connect_error", () => {
   }
 });
 
-// CAC NUT DIEU KHIEN
-const nextButton = document.getElementById("next");
+// CÁC NÚT ĐIỀU KHIỂN
+document.getElementById("next")?.addEventListener("click", () => {
+  post("/api/admin/next");
+});
 
-if (nextButton) {
-  nextButton.onclick = () => {
-    post("/api/admin/next");
-  };
-}
+document.getElementById("reset")?.addEventListener("click", () => {
+  post("/api/admin/reset-score");
+});
 
-const resetButton = document.getElementById("reset");
+// THÊM NGƯỜI ĐÃ XÁC NHẬN QUÀ THỦ CÔNG
+document.getElementById("addPlayer")?.addEventListener("click", async () => {
+  const input = document.getElementById("giftUser");
+  const username = input?.value.trim().replace(/^@/, "");
 
-if (resetButton) {
-  resetButton.onclick = () => {
-    post("/api/admin/reset-score");
-  };
-}
+  if (!username) {
+    alert("Nhập tên TikTok người tặng.");
+    return;
+  }
 
-// THEM NGUOI CHOI DA XAC NHAN QUA
-const addPlayerButton = document.getElementById("addPlayer");
+  const result = await post("/api/admin/add-player", {
+    username,
+    giftName: "Quà TikTok (đã xác nhận thủ công)"
+  });
 
-if (addPlayerButton) {
-  addPlayerButton.onclick = async () => {
-    const input = document.getElementById("giftUser");
-    const username = input ? input.value.trim() : "";
-
-    if (!username) {
-      alert("Nhập tên TikTok người tặng.");
-      return;
-    }
-
-    const result = await post("/api/admin/add-player", {
-      username,
-      giftName: "Quà TikTok (đã xác nhận thủ công)"
-    });
-
-    if (result.ok && input) {
-      input.value = "";
-    }
-  };
-}
+  if (result.ok && input) {
+    input.value = "";
+  }
+});
