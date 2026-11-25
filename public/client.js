@@ -10,7 +10,7 @@ let state = null;
 let username = "";
 let firstState = true;
 
-// BAT AM THANH
+// NUT AM THANH
 if (soundButton) {
   soundButton.onclick = () => {
     const on = CaroSound.toggle();
@@ -23,28 +23,32 @@ if (soundButton) {
   };
 }
 
-// VE BAN CO VA CAP NHAT GIAO DIEN
+// CAP NHAT GIAO DIEN
 function render(s) {
   if (!s || !Array.isArray(s.board)) return;
 
-  // HIEU UNG DI CHUYEN VA CHIEN THANG
   if (state && !firstState) {
     const oldCount = state.board.filter(Boolean).length;
     const newCount = s.board.filter(Boolean).length;
 
-    if (newCount > oldCount && window.CaroSound) {
+    if (newCount > oldCount) {
       CaroSound.move();
+
+      if (window.CaroEffects) {
+        CaroEffects.move();
+      }
     }
 
-    if (!state.winner && s.winner && window.CaroSound) {
+    // NGUOI XEM LA QUAN O
+    if (!state.winner && s.winner) {
       CaroSound.win();
 
       if (window.CaroEffects) {
-        CaroEffects.celebrate(
-          s.winner === "X"
-            ? "CHỦ LIVE CHIẾN THẮNG!"
-            : "NGƯỜI CHƠI CHIẾN THẮNG!"
-        );
+        if (s.winner === "O") {
+          CaroEffects.win("BẠN CHIẾN THẮNG!");
+        } else {
+          CaroEffects.defeat("BẠN THUA CUỘC!");
+        }
       }
     }
   }
@@ -52,74 +56,82 @@ function render(s) {
   firstState = false;
   state = s;
 
-  // CAP NHAT TEN PHONG NEU CO PHAN TU ROOM
+  // TEN PHONG NEU TRANG CO PHAN TU ROOM
   const roomEl = document.getElementById("room");
 
   if (roomEl) {
     roomEl.textContent = `${s.roomName || "Caro Live"} · 15×15`;
   }
 
-  // CAP NHAT NGUOI CHOI
-  document.getElementById("host").textContent = s.host || "@mbbb1118";
+  // TEN VA DIEM
+  const hostEl = document.getElementById("host");
+  const hostScoreEl = document.getElementById("hostScore");
+  const viewerScoreEl = document.getElementById("viewerScore");
+  const opponentEl = document.getElementById("opponent");
 
-  document.getElementById("hostScore").textContent =
-    s.scores?.host ?? 0;
-
-  document.getElementById("viewerScore").textContent =
-    s.scores?.viewers ?? 0;
-
-  document.getElementById("opponent").textContent =
-    s.activePlayer || "Chưa chọn";
-
-  // CAP NHAT LUOT CHOI
-  if (statusEl) {
-    statusEl.textContent = s.winner
-      ? (
-          s.winner === "X"
-            ? "🏆 CHỦ LIVE THẮNG!"
-            : `🏆 ${s.activePlayer || "NGƯỜI CHƠI"} CHIẾN THẮNG!`
-        )
-      : (
-          s.turn === "O"
-            ? `Đến lượt ${s.activePlayer || "người xem"} (O)`
-            : "Đến lượt chủ LIVE (X)"
-        );
+  if (hostEl) {
+    hostEl.textContent = s.host || "@mbbb1118";
   }
 
-  // TAO LAI 225 O CO
+  if (hostScoreEl) {
+    hostScoreEl.textContent = s.scores?.host ?? 0;
+  }
+
+  if (viewerScoreEl) {
+    viewerScoreEl.textContent = s.scores?.viewers ?? 0;
+  }
+
+  if (opponentEl) {
+    opponentEl.textContent = s.activePlayer || "Chưa chọn";
+  }
+
+  // TRANG THAI LUOT CHOI
+  if (statusEl) {
+    if (s.winner) {
+      statusEl.textContent = s.winner === "X"
+        ? "🏆 CHỦ LIVE THẮNG!"
+        : `🏆 ${s.activePlayer || "NGƯỜI CHƠI"} CHIẾN THẮNG!`;
+    } else {
+      statusEl.textContent = s.turn === "O"
+        ? `Đến lượt ${s.activePlayer || "người xem"} (O)`
+        : "Đến lượt chủ LIVE (X)";
+    }
+  }
+
+  // TAO 225 O CO
   if (!boardEl) return;
 
   boardEl.innerHTML = "";
 
-  s.board.forEach((v, i) => {
+  s.board.forEach((value, index) => {
     const cell = document.createElement("button");
 
     cell.type = "button";
-    cell.className = "cell";
+    cell.className = "cell " + (value || "");
+    cell.textContent = value || "";
 
-    if (v) {
-      cell.classList.add(v);
+    if (value) {
       cell.classList.add("pop");
 
       cell.setAttribute(
         "aria-label",
-        v === "X" ? "Quân trắng" : "Quân đen"
+        value === "X" ? "Quân trắng" : "Quân đen"
       );
     } else {
-      cell.setAttribute("aria-label", `Ô cờ ${i + 1}`);
+      cell.setAttribute("aria-label", `Ô cờ ${index + 1}`);
     }
 
-    cell.textContent = v || "";
-
     cell.disabled =
-      !!v ||
+      !!value ||
       !!s.winner ||
       s.turn !== "O" ||
       !s.activePlayer;
 
     cell.addEventListener("click", () => {
       if (!cell.disabled) {
-        socket.emit("viewer:move", { index: i });
+        socket.emit("viewer:move", {
+          index
+        });
       }
     });
 
@@ -127,15 +139,17 @@ function render(s) {
   });
 }
 
-// NHAN TRANG THAI TU MAY CHU
+// NHAN TRANG THAI
 socket.on("state", render);
 
 // THONG BAO
-socket.on("notice", (message) => {
-  if (notice) notice.textContent = message;
+socket.on("notice", message => {
+  if (notice) {
+    notice.textContent = message;
+  }
 });
 
-// KET NOI SOCKET
+// KET NOI MAY CHU
 socket.on("connect", () => {
   if (statusEl && !state) {
     statusEl.textContent = "Đã kết nối máy chủ, đang tải bàn cờ…";
@@ -154,7 +168,7 @@ socket.on("connect_error", () => {
   }
 });
 
-// NGUOI XEM DANG KY THAM GIA
+// NGUOI XEM DANG KY
 const joinButton = document.getElementById("join");
 const usernameInput = document.getElementById("username");
 
@@ -171,6 +185,8 @@ if (joinButton) {
       return;
     }
 
-    socket.emit("viewer:join", { username });
+    socket.emit("viewer:join", {
+      username
+    });
   };
 }
