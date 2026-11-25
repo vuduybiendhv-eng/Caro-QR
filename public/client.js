@@ -15,13 +15,43 @@ let username = "";
 let registered = false;
 let firstState = true;
 
-// ÂM THANH
+// GỌI HIỆU ỨNG AN TOÀN
+function playEffect(name, message) {
+  try {
+    const effects = window.CaroEffects;
+
+    if (effects && typeof effects[name] === "function") {
+      effects[name](message);
+    }
+  } catch (error) {
+    console.warn("Không chạy được hiệu ứng:", name, error);
+  }
+}
+
+// GỌI ÂM THANH AN TOÀN
+function playSound(name) {
+  try {
+    const sound = window.CaroSound;
+
+    if (sound && typeof sound[name] === "function") {
+      sound[name]();
+    }
+  } catch (error) {
+    console.warn("Không chạy được âm thanh:", name, error);
+  }
+}
+
+// NÚT BẬT / TẮT ÂM THANH
 if (soundButton) {
   soundButton.onclick = () => {
     if (!window.CaroSound) return;
 
     const on = CaroSound.toggle();
-    soundButton.textContent = on ? "🔊 Bật âm thanh" : "🔇 Tắt âm thanh";
+
+    soundButton.textContent = on
+      ? "🔊 Bật âm thanh"
+      : "🔇 Tắt âm thanh";
+
     soundButton.classList.toggle("off", !on);
   };
 }
@@ -55,10 +85,14 @@ function updateRegistration(s) {
   const key = username.toLowerCase();
 
   const pending = Array.isArray(s.pendingQueue) &&
-    s.pendingQueue.some(p => String(p.username).toLowerCase() === key);
+    s.pendingQueue.some(
+      p => String(p.username).toLowerCase() === key
+    );
 
   const approved = Array.isArray(s.queue) &&
-    s.queue.some(p => String(p.username).toLowerCase() === key);
+    s.queue.some(
+      p => String(p.username).toLowerCase() === key
+    );
 
   const playing = s.activePlayer &&
     s.activePlayer.toLowerCase() === key;
@@ -72,30 +106,40 @@ function updateRegistration(s) {
   }
 }
 
+// KIỂM TRA NƯỚC ĐI VÀ KẾT QUẢ
+function checkGameEffects(previous, current) {
+  if (!previous || !current) return;
+
+  const oldCount = previous.board.filter(Boolean).length;
+  const newCount = current.board.filter(Boolean).length;
+
+  // Có nước đi mới
+  if (newCount > oldCount) {
+    playSound("move");
+    playEffect("move");
+  }
+
+  // Vừa kết thúc ván
+  if (!previous.winner && current.winner) {
+    playSound("win");
+
+    if (current.winner === "O") {
+      // Người xem thắng
+      playEffect("win", "BẠN CHIẾN THẮNG!");
+    } else {
+      // Chủ LIVE thắng
+      playEffect("defeat", "BẠN THUA CUỘC!");
+    }
+  }
+}
+
 // CẬP NHẬT GIAO DIỆN
 function render(s) {
   if (!s || !Array.isArray(s.board)) return;
 
-  if (state && !firstState) {
-    const oldCount = state.board.filter(Boolean).length;
-    const newCount = s.board.filter(Boolean).length;
-
-    if (newCount > oldCount && window.CaroSound) {
-      CaroSound.move();
-      if (window.CaroEffects) CaroEffects.move();
-    }
-
-    if (!state.winner && s.winner && window.CaroSound) {
-      CaroSound.win();
-
-      if (window.CaroEffects) {
-        if (s.winner === "O") {
-          CaroEffects.win("BẠN CHIẾN THẮNG!");
-        } else {
-          CaroEffects.defeat("BẠN THUA CUỘC!");
-        }
-      }
-    }
+  // Không chạy hiệu ứng khi vừa tải trang
+  if (!firstState) {
+    checkGameEffects(state, s);
   }
 
   firstState = false;
@@ -103,6 +147,7 @@ function render(s) {
 
   // TÊN PHÒNG
   const roomEl = document.getElementById("room");
+
   if (roomEl) {
     roomEl.textContent = `${s.roomName || "Caro Live"} · 15×15`;
   }
@@ -133,7 +178,7 @@ function render(s) {
 
   updateRegistration(s);
 
-  // VẼ BÀN CỜ VỚI QUÂN TRÒN
+  // VẼ BÀN CỜ
   if (!boardEl) return;
 
   boardEl.innerHTML = "";
@@ -144,19 +189,28 @@ function render(s) {
     cell.type = "button";
     cell.className = "cell";
 
-    if (value === "X") cell.classList.add("X", "piece-x");
-    if (value === "O") cell.classList.add("O", "piece-o");
+    if (value === "X") {
+      cell.classList.add("X", "piece-x");
+    }
+
+    if (value === "O") {
+      cell.classList.add("O", "piece-o");
+    }
 
     if (value) {
       const stone = document.createElement("span");
+
       stone.className = "stone";
       stone.setAttribute("aria-hidden", "true");
-      cell.appendChild(stone);
 
+      cell.appendChild(stone);
       cell.classList.add("pop");
+
       cell.setAttribute(
         "aria-label",
-        value === "X" ? "Quân vàng của chủ LIVE" : "Quân xanh của người chơi"
+        value === "X"
+          ? "Quân vàng của chủ LIVE"
+          : "Quân xanh của người chơi"
       );
     } else {
       cell.setAttribute("aria-label", `Ô cờ ${index + 1}`);
@@ -210,6 +264,11 @@ socket.on("connect", () => {
   if (statusEl && !state) {
     statusEl.textContent = "Đã kết nối máy chủ, đang tải bàn cờ…";
   }
+
+  // Nếu đã nhập tên, đăng ký lại sau khi kết nối lại
+  if (username) {
+    socket.emit("viewer:register", { username });
+  }
 });
 
 socket.on("disconnect", () => {
@@ -245,4 +304,4 @@ if (joinButton) {
 
     socket.emit("viewer:register", { username });
   };
-                   }
+}
