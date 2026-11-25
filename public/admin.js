@@ -1,287 +1,332 @@
 
-const socket = io();
-const boardEl = document.getElementById("board");
+(() => {
+  const socket = io();
 
-let state = null;
-let firstState = true;
+  const boardEl = document.getElementById("board");
+  let state = null;
 
-const pin = () => document.getElementById("pin")?.value || "";
+  const pin = () =>
+    document.getElementById("pin")?.value || "";
 
-const soundButton = document.getElementById("soundToggle");
-
-if (soundButton) {
-  soundButton.onclick = () => {
-    const on = CaroSound.toggle();
-
-    soundButton.textContent = on
-      ? "🔊 Bật âm thanh"
-      : "🔇 Tắt âm thanh";
-
-    soundButton.classList.toggle("off", !on);
-  };
-}
-
-// GỬI YÊU CẦU LÊN MÁY CHỦ
-async function post(path, body = {}) {
-  try {
-    const response = await fetch(path, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "x-admin-pin": pin()
-      },
-      body: JSON.stringify(body)
-    });
-
-    const data = await response.json();
-
-    if (!response.ok) {
-      alert(data.error || "Có lỗi xảy ra.");
-      return data;
-    }
-
-    return data;
-  } catch (error) {
-    alert("Không kết nối được máy chủ. Hãy thử lại.");
-    return { ok: false };
-  }
-}
-
-// TẠO DÒNG NGƯỜI CHƠI
-function createPlayerRow(player, type) {
-  const row = document.createElement("div");
-  row.className = "queueitem";
-
-  const label = document.createElement("span");
-  label.textContent = `@${player.username}`;
-
-  row.appendChild(label);
-
-  if (type === "pending") {
-    const approveButton = document.createElement("button");
-    approveButton.type = "button";
-    approveButton.textContent = "✓ Duyệt";
-
-    approveButton.onclick = async () => {
-      approveButton.disabled = true;
-
-      const result = await post("/api/admin/approve-player", {
-        username: player.username
+  // GỬI YÊU CẦU ĐẾN SERVER
+  async function post(path, body = {}) {
+    try {
+      const response = await fetch(path, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "x-admin-pin": pin()
+        },
+        body: JSON.stringify(body)
       });
 
-      if (!result.ok) approveButton.disabled = false;
-    };
+      const data = await response.json();
 
-    const rejectButton = document.createElement("button");
-    rejectButton.type = "button";
-    rejectButton.textContent = "✕ Từ chối";
-
-    rejectButton.onclick = async () => {
-      if (!confirm(`Từ chối yêu cầu của @${player.username}?`)) return;
-
-      rejectButton.disabled = true;
-
-      const result = await post("/api/admin/reject-player", {
-        username: player.username
-      });
-
-      if (!result.ok) rejectButton.disabled = false;
-    };
-
-    row.append(approveButton, rejectButton);
-  }
-
-  if (type === "approved") {
-    const button = document.createElement("button");
-    button.type = "button";
-    button.textContent = "Chọn đấu";
-
-    button.onclick = () => {
-      post("/api/admin/select", {
-        username: player.username
-      });
-    };
-
-    row.appendChild(button);
-  }
-
-  return row;
-}
-
-// HIỂN THỊ DANH SÁCH
-function renderLists(s) {
-  const pendingEl = document.getElementById("pendingQueue");
-  const queueEl = document.getElementById("queue");
-
-  // NGƯỜI XEM ĐANG CHỜ DUYỆT
-  if (pendingEl) {
-    pendingEl.innerHTML = "";
-
-    const pending = Array.isArray(s.pendingQueue)
-      ? s.pendingQueue
-      : [];
-
-    if (!pending.length) {
-      pendingEl.textContent = "Chưa có yêu cầu đăng ký mới.";
-    } else {
-      pending.forEach(player => {
-        pendingEl.appendChild(
-          createPlayerRow(player, "pending")
-        );
-      });
-    }
-  }
-
-  // NGƯỜI ĐÃ ĐƯỢC DUYỆT
-  if (queueEl) {
-    queueEl.innerHTML = "";
-
-    const queue = Array.isArray(s.queue) ? s.queue : [];
-
-    if (!queue.length) {
-      queueEl.textContent = "Chưa có người chơi đã được duyệt.";
-    } else {
-      queue.forEach(player => {
-        queueEl.appendChild(
-          createPlayerRow(player, "approved")
-        );
-      });
-    }
-  }
-}
-
-// HIỂN THỊ BÀN CỜ VÀ TRẠNG THÁI
-function render(s) {
-  if (!s || !Array.isArray(s.board)) return;
-
-  if (state && !firstState) {
-    const oldCount = state.board.filter(Boolean).length;
-    const newCount = s.board.filter(Boolean).length;
-
-    if (
-      s.queue &&
-      state.queue &&
-      s.queue.length > state.queue.length
-    ) {
-      CaroSound.join();
-    }
-
-    if (newCount > oldCount) {
-      CaroSound.move();
-    }
-
-    if (!state.winner && s.winner) {
-      CaroSound.win();
-
-      if (window.CaroEffects) {
-        if (s.winner === "X") {
-          CaroEffects.win("CHỦ LIVE CHIẾN THẮNG!");
-        } else {
-          CaroEffects.defeat("CHỦ LIVE THUA CUỘC!");
-        }
+      if (!response.ok) {
+        alert(data.error || "Có lỗi xảy ra.");
+        return { ok: false };
       }
-    }
 
-    if (newCount === 0 && oldCount > 0 && !s.winner) {
-      CaroSound.reset();
+      return data;
+
+    } catch (error) {
+      console.error(error);
+      alert("Không kết nối được máy chủ Caro LIVE.");
+      return { ok: false };
     }
   }
 
-  firstState = false;
-  state = s;
+  // TẠO NÚT
+  function createButton(label, action, className = "") {
+    const button = document.createElement("button");
 
-  const status = document.getElementById("status");
+    button.type = "button";
+    button.textContent = label;
 
-  if (status) {
-    status.textContent = s.winner
-      ? `🏆 Kết quả: ${s.winner} thắng`
-      : `Lượt: ${s.turn}`;
+    if (className) {
+      button.className = className;
+    }
+
+    button.addEventListener("click", action);
+
+    return button;
   }
 
   // VẼ BÀN CỜ
-  if (boardEl) {
+  function renderBoard(s) {
+    if (!boardEl || !Array.isArray(s.board)) return;
+
     boardEl.innerHTML = "";
 
     s.board.forEach((value, index) => {
       const cell = document.createElement("button");
 
       cell.type = "button";
-      cell.className = "cell " + (value || "");
-      cell.textContent = value || "·";
+      cell.className = "cell";
 
+      // QUÂN X - VÀNG ĐỒNG
+      if (value === "X") {
+        cell.classList.add("X", "piece-x");
+      }
+
+      // QUÂN O - XANH NGỌC
+      if (value === "O") {
+        cell.classList.add("O", "piece-o");
+      }
+
+      // TẠO HÌNH QUÂN CỜ
+      if (value === "X" || value === "O") {
+        const stone = document.createElement("span");
+
+        stone.className = "stone";
+        stone.setAttribute("aria-hidden", "true");
+
+        cell.appendChild(stone);
+      }
+
+      // CHỈ CHO HOST ĐÁNH KHI ĐẾN LƯỢT X
       cell.disabled =
         !!value ||
         !!s.winner ||
         s.turn !== "X";
 
-      if (value) {
-        cell.classList.add("pop");
-      }
+      // HOST ĐÁNH QUÂN X
+      cell.addEventListener("click", async () => {
+        if (
+          !state ||
+          state.board[index] ||
+          state.winner ||
+          state.turn !== "X"
+        ) {
+          return;
+        }
 
-      cell.onclick = () => {
-        post("/api/admin/move", { index });
-      };
+        cell.disabled = true;
+
+        const result = await post("/api/admin/move", {
+          index
+        });
+
+        if (!result.ok && state) {
+          render(state);
+        }
+      });
 
       boardEl.appendChild(cell);
     });
   }
 
-  // CẬP NHẬT HAI DANH SÁCH
-  renderLists(s);
-}
+  // DANH SÁCH CHỜ DUYỆT
+  function renderPendingQueue(s) {
+    const pending = document.getElementById("pendingQueue");
 
-// NHẬN TRẠNG THÁI TỪ MÁY CHỦ
-socket.on("state", render);
+    if (!pending) return;
 
-socket.on("connect", () => {
-  const status = document.getElementById("status");
+    pending.innerHTML = "";
 
-  if (status && !state) {
-    status.textContent = "Đã kết nối máy chủ";
+    const players = s.pendingQueue || [];
+
+    if (!players.length) {
+      pending.textContent = "Chưa có yêu cầu đăng ký mới.";
+      return;
+    }
+
+    players.forEach(player => {
+      const row = document.createElement("div");
+      row.className = "queueitem";
+
+      const label = document.createElement("span");
+      label.textContent = "@" + player.username + " · Chờ duyệt";
+
+      const approve = createButton(
+        "✓ Duyệt",
+        async () => {
+          const result = await post(
+            "/api/admin/approve-player",
+            { username: player.username }
+          );
+
+          if (result.ok) {
+            alert("Đã duyệt @" + player.username);
+          }
+        }
+      );
+
+      const reject = createButton(
+        "✕ Từ chối",
+        async () => {
+          if (!confirm("Từ chối @" + player.username + "?")) {
+            return;
+          }
+
+          await post("/api/admin/reject-player", {
+            username: player.username
+          });
+        }
+      );
+
+      row.append(label, approve, reject);
+      pending.appendChild(row);
+    });
   }
-});
 
-socket.on("disconnect", () => {
-  const status = document.getElementById("status");
+  // DANH SÁCH ĐÃ DUYỆT
+  function renderQueue(s) {
+    const queue = document.getElementById("queue");
 
-  if (status) {
-    status.textContent = "Mất kết nối, đang thử lại…";
+    if (!queue) return;
+
+    queue.innerHTML = "";
+
+    const players = s.queue || [];
+
+    if (!players.length) {
+      queue.textContent = "Chưa có người chơi được duyệt.";
+      return;
+    }
+
+    players.forEach(player => {
+      const row = document.createElement("div");
+      row.className = "queueitem";
+
+      const label = document.createElement("span");
+      label.textContent = "@" + player.username;
+
+      const button = createButton(
+        "Chọn đấu",
+        async () => {
+          await post("/api/admin/select", {
+            username: player.username
+          });
+        }
+      );
+
+      row.append(label, button);
+      queue.appendChild(row);
+    });
   }
-});
 
-socket.on("connect_error", () => {
-  const status = document.getElementById("status");
+  // CẬP NHẬT ĐIỂM VÀ THÔNG TIN
+  function renderInfo(s) {
+    const status = document.getElementById("status");
 
-  if (status) {
-    status.textContent = "Không kết nối được máy chủ!";
+    if (status) {
+      status.textContent = s.winner
+        ? (
+            s.winner === "X"
+              ? "Kết quả: Chủ LIVE thắng!"
+              : `Kết quả: @${s.activePlayer} thắng!`
+          )
+        : (
+            s.turn === "X"
+              ? "Đến lượt chủ LIVE (X)"
+              : `Đến lượt @${s.activePlayer || "người xem"} (O)`
+          );
+    }
+
+    const hostScore = document.getElementById("hostScore");
+    const viewerScore = document.getElementById("viewerScore");
+
+    if (hostScore) {
+      hostScore.textContent = s.scores?.host ?? 0;
+    }
+
+    if (viewerScore) {
+      viewerScore.textContent = s.scores?.viewers ?? 0;
+    }
+
+    const opponent = document.getElementById("opponent");
+
+    if (opponent) {
+      opponent.textContent = s.activePlayer
+        ? "@" + s.activePlayer
+        : "Chưa chọn";
+    }
   }
-});
 
-// CÁC NÚT ĐIỀU KHIỂN
-document.getElementById("next")?.addEventListener("click", () => {
-  post("/api/admin/next");
-});
+  // NHẬN TRẠNG THÁI MỚI TỪ SERVER
+  function render(s) {
+    if (!s || !Array.isArray(s.board)) return;
 
-document.getElementById("reset")?.addEventListener("click", () => {
-  post("/api/admin/reset-score");
-});
+    state = s;
 
-// THÊM NGƯỜI ĐÃ XÁC NHẬN QUÀ THỦ CÔNG
-document.getElementById("addPlayer")?.addEventListener("click", async () => {
-  const input = document.getElementById("giftUser");
-  const username = input?.value.trim().replace(/^@/, "");
+    renderInfo(s);
+    renderBoard(s);
+    renderPendingQueue(s);
+    renderQueue(s);
 
-  if (!username) {
-    alert("Nhập tên TikTok người tặng.");
-    return;
+    console.log(
+      "Đã cập nhật bàn cờ:",
+      s.turn,
+      s.board.filter(Boolean).length,
+      "quân"
+    );
   }
 
-  const result = await post("/api/admin/add-player", {
-    username,
-    giftName: "Quà TikTok (đã xác nhận thủ công)"
+  // SOCKET.IO
+  socket.on("state", render);
+
+  socket.on("connect", () => {
+    console.log("Caro LIVE đã kết nối máy chủ.");
   });
 
-  if (result.ok && input) {
-    input.value = "";
-  }
-});
+  socket.on("disconnect", () => {
+    const status = document.getElementById("status");
+
+    if (status) {
+      status.textContent = "Mất kết nối máy chủ...";
+    }
+  });
+
+  socket.on("connect_error", error => {
+    console.error("Socket lỗi:", error.message);
+  });
+
+  // KẾT THÚC VÁN / VÁN MỚI
+  document.getElementById("next")?.addEventListener(
+    "click",
+    async () => {
+      if (!confirm("Kết thúc ván và bắt đầu ván mới?")) {
+        return;
+      }
+
+      await post("/api/admin/next");
+    }
+  );
+
+  // RESET ĐIỂM
+  document.getElementById("reset")?.addEventListener(
+    "click",
+    async () => {
+      if (!confirm("Bạn muốn xóa toàn bộ điểm số?")) {
+        return;
+      }
+
+      await post("/api/admin/reset-score");
+    }
+  );
+
+  // THÊM NGƯỜI CHƠI THỦ CÔNG
+  document.getElementById("addPlayer")?.addEventListener(
+    "click",
+    async () => {
+      const input = document.getElementById("giftUser");
+      const username = input?.value.trim();
+
+      if (!username) {
+        alert("Nhập tên TikTok người chơi.");
+        return;
+      }
+
+      const result = await post("/api/admin/add-player", {
+        username,
+        giftName: "Đã xác nhận thủ công"
+      });
+
+      if (result.ok && input) {
+        input.value = "";
+      }
+    }
+  );
+
+})();
