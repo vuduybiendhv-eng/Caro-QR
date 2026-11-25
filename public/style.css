@@ -1406,3 +1406,115 @@ button:active {
     opacity: 1 !important;
   }
 }
+
+/* =========================================
+   CARO LIVE - FIX QR VA KHUNG DANG KY
+   ========================================= */
+
+@media (max-width: 650px) {
+  html,
+  body {
+    height: auto !important;
+    min-height: 100% !important;
+    overflow-x: hidden !important;
+    overflow-y: auto !important;
+  }
+
+  .wrap.caro-layout {
+    height: auto !important;
+    min-height: 100dvh !important;
+    max-height: none !important;
+    overflow: visible !important;
+    display: flex !important;
+    flex-direction: column !important;
+    justify-content: flex-start !important;
+    gap: 10px !important;
+    padding-bottom: 18px !important;
+  }
+
+  .game-area {
+    flex: none !important;
+    min-height: auto !important;
+    grid-template-rows: auto !important;
+    overflow: visible !important;
+  }
+
+  .board-column {
+    min-height: auto !important;
+    height: auto !important;
+    overflow: visible !important;
+    justify-content: flex-start !important;
+    gap: 10px !important;
+  }
+
+  .board-panel {
+    flex: none !important;
+    width: 100% !important;
+    max-height: none !important;
+  }
+
+  /* QR luôn nằm dưới bàn cờ */
+  .board-column .qr-card {
+    display: flex !important;
+    position: relative !important;
+    width: min(230px, 90%) !important;
+    height: auto !important;
+    min-height: 0 !important;
+    max-height: none !important;
+    margin: 10px auto !important;
+    padding: 12px !important;
+    overflow: visible !important;
+    flex-direction: column !important;
+  }
+
+  .board-column .qr-card img {
+    display: block !important;
+    width: 145px !important;
+    height: 145px !important;
+    margin: 8px auto !important;
+  }
+
+  /* Khung đăng ký nằm dưới QR */
+  .caro-layout > .join {
+    display: flex !important;
+    position: relative !important;
+    width: 100% !important;
+    height: auto !important;
+    max-width: 650px !important;
+    margin: 8px auto !important;
+    padding: 12px !important;
+    flex-direction: column !important;
+    overflow: visible !important;
+  }
+
+  .joinrow {
+    display: flex !important;
+  }
+
+  .joinrow input,
+  .joinrow button {
+    display: block !important;
+  }
+
+  /* Giữ thông báo sau khi đăng ký */
+  #notice {
+    display: block !important;
+    visibility: visible !important;
+    min-height: 20px;
+    text-align: center;
+    overflow-wrap: anywhere;
+  }
+
+  .game-sidebar,
+  .chat-panel,
+  footer {
+    display: none !important;
+  }
+}
+
+/* Sau khi đăng ký: chỉ giữ thông báo */
+.caro-layout > .join.registration-done label,
+.caro-layout > .join.registration-done .joinrow,
+.caro-layout > .join.registration-done > p {
+  display: none !important;
+}
