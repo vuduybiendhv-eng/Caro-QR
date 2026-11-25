@@ -1,14 +1,76 @@
+
 <!doctype html>
-<html lang="vi"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Điều khiển Caro Live</title><link rel="stylesheet" href="/style.css"></head>
+<html lang="vi">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Điều khiển Caro Live</title>
+  <link rel="stylesheet" href="/style.css">
+</head>
+
 <body>
-<canvas id="celebrationCanvas" aria-hidden="true"></canvas><div id="victoryBanner" class="victory-banner" aria-live="polite"></div><main class="wrap admin"><header><div class="eyebrow">HOST CONTROL PANEL</div><h1>CARO LIVE</h1><p>Điều khiển phòng · OBS / TikTok LIVE</p></header>
-<section class="join"><label>Admin PIN</label><input id="pin" type="password" placeholder="Nhập PIN quản trị"><p>Không chia sẻ PIN này với người xem.</p></section>
-<section class="join">
-<h2>Thêm người đã tặng quà (duyệt thủ công)</h2>
-<p>Chủ LIVE nhìn thấy quà trên TikTok ở điện thoại 1, sau đó nhập đúng tên tài khoản tại đây.</p>
-<div class="joinrow"><input id="giftUser" placeholder="Tên TikTok người tặng"><button id="addPlayer">Xác nhận quà</button></div>
-</section>
-<section><h2>Hàng chờ quà tặng</h2><div id="queue" class="queue">Đang tải…</div></section>
-<div class="soundbar"><button id="soundToggle" type="button">🔊 Bật âm thanh</button></div><p class="sound-note">Âm báo khi có người vào hàng chờ, có nước đi hoặc kết thúc ván</p><section><h2>Bàn cờ chủ LIVE</h2><p id="status">Chủ LIVE đánh quân X</p><div class="board" id="board"></div><div class="actions"><button id="next">Kết thúc ván / ván mới</button><button id="reset">Reset điểm</button></div></section>
-<p><a href="/qr.html">Mở trang QR cho OBS</a> · <a href="/play">Mở trang người chơi</a></p></main>
-<script src="/socket.io/socket.io.js"></script><script src="/sound.js"></script><script src="/effects.js"></script><script src="/admin.js"></script></body></html>
+  <canvas id="celebrationCanvas" aria-hidden="true"></canvas>
+  <div id="victoryBanner" class="victory-banner" aria-live="polite"></div>
+
+  <main class="wrap admin">
+
+    <header>
+      <div class="eyebrow">HOST CONTROL PANEL</div>
+      <h1>CARO LIVE</h1>
+      <p>Điều khiển phòng · OBS / TikTok LIVE</p>
+    </header>
+
+    <section class="join">
+      <label>Admin PIN</label>
+      <input id="pin" type="password" placeholder="Nhập PIN quản trị">
+      <p>Không chia sẻ PIN này với người xem.</p>
+    </section>
+
+    <section class="join">
+      <h2>Thêm người đã tặng quà (duyệt thủ công)</h2>
+      <p>Chủ LIVE nhìn thấy quà trên TikTok ở điện thoại 1, sau đó nhập đúng tên tài khoản tại đây.</p>
+      <div class="joinrow">
+        <input id="giftUser" placeholder="Tên TikTok người tặng">
+        <button id="addPlayer">Xác nhận quà</button>
+      </div>
+    </section>
+
+    <section>
+      <h2>Hàng chờ quà tặng</h2>
+      <div id="queue" class="queue">Đang tải…</div>
+    </section>
+
+    <div class="soundbar">
+      <button id="soundToggle" type="button">🔊 Bật âm thanh</button>
+    </div>
+
+    <p class="sound-note">
+      Âm báo khi có người vào hàng chờ, có nước đi hoặc kết thúc ván
+    </p>
+
+    <section>
+      <h2>Bàn cờ chủ LIVE</h2>
+      <p id="status">Chủ LIVE đánh quân X</p>
+      <div class="board" id="board"></div>
+
+      <div class="actions">
+        <button id="next">Kết thúc ván / ván mới</button>
+        <button id="reset">Reset điểm</button>
+      </div>
+    </section>
+
+    <p>
+      <a href="/qr.html">Mở trang QR cho OBS</a>
+      ·
+      <a href="/play">Mở trang người chơi</a>
+    </p>
+
+  </main>
+
+  <script src="/socket.io/socket.io.js"></script>
+  <script src="/sound.js"></script>
+  <script src="/music.js"></script>
+  <script src="/effects.js"></script>
+  <script src="/admin.js"></script>
+</body>
+</html>
