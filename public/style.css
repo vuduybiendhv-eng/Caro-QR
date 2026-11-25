@@ -1387,3 +1387,22 @@ button:active {
     margin-bottom: 14px;
   }
 }
+
+/* HIỆN LẠI KHU VỰC ĐĂNG KÝ TRÊN ĐIỆN THOẠI */
+@media (max-width: 650px) {
+  .join {
+    display: flex !important;
+    flex-direction: column !important;
+    visibility: visible !important;
+    opacity: 1 !important;
+    height: auto !important;
+    overflow: visible !important;
+  }
+
+  .join input,
+  .join button {
+    display: block !important;
+    visibility: visible !important;
+    opacity: 1 !important;
+  }
+}
