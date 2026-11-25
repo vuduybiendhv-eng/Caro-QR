@@ -731,3 +731,22 @@ footer {
     width: 100%;
   }
 }
+
+/* QR nho gon, khong che ban co */
+.qr-card {
+  width: 100%;
+  max-width: 220px;
+  margin: 16px auto;
+  padding: 12px;
+  text-align: center;
+  box-sizing: border-box;
+}
+
+.qr-card img {
+  display: block;
+  width: 150px !important;
+  max-width: 100% !important;
+  height: auto !important;
+  margin: 10px auto;
+  object-fit: contain;
+}
