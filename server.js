@@ -9,8 +9,11 @@ const crypto = require("crypto");
 
 const app = express();
 const server = http.createServer(app);
+
 const io = new Server(server, {
-  cors: { origin: false }
+  cors: { origin: false },
+  pingInterval: 25000,
+  pingTimeout: 20000
 });
 
 const PORT = Number(process.env.PORT || 3000);
@@ -28,11 +31,15 @@ app.use(helmet({ contentSecurityPolicy: false }));
 app.use(express.json({ limit: "32kb" }));
 app.use(express.static(path.join(__dirname, "public")));
 
+// TRANG CHOI
 app.get("/play", (_req, res) => {
   res.sendFile(path.join(__dirname, "public", "index.html"));
 });
 
-// TRẠNG THÁI TRÒ CHƠI
+// =========================================
+// TRANG THAI TRO CHOI
+// =========================================
+
 let board = Array(225).fill(null);
 let turn = "X";
 let winner = null;
@@ -48,7 +55,10 @@ let scores = {
 
 let lastMoves = [];
 
-// THỜI GIAN LƯỢT
+// =========================================
+// DONG HO LUOT CHOI
+// =========================================
+
 let turnDeadline = null;
 let lastBroadcastSecond = -1;
 
@@ -71,12 +81,16 @@ function stopTurnTimer() {
   lastBroadcastSecond = -1;
 }
 
-// TRẠNG THÁI CÔNG KHAI
+// =========================================
+// TRANG THAI CONG KHAI
+// =========================================
+
 function publicState() {
   return {
     roomName: ROOM_NAME,
     host: HOST_TIKTOK,
-    board,
+
+    board: [...board],
     turn,
     winner,
     activePlayer,
@@ -97,23 +111,28 @@ function publicState() {
       at
     })),
 
-    scores,
-    lastMoves
+    scores: { ...scores },
+    lastMoves: [...lastMoves]
   };
 }
 
-// GỬI TRẠNG THÁI ĐẾN TẤT CẢ ĐIỆN THOẠI
+// =========================================
+// PHAT TRANG THAI
+// =========================================
+
 function broadcast() {
   io.emit("state", publicState());
 }
 
-// ĐỒNG HỒ MÁY CHỦ
+// =========================================
+// DONG HO MAY CHU
+// =========================================
+
 setInterval(() => {
   if (!turnDeadline || winner) return;
 
   const remaining = remainingSeconds();
 
-  // HẾT GIỜ: TỰ ĐỘNG THUA
   if (Date.now() >= turnDeadline) {
     const timedOutTurn = turn;
 
@@ -129,20 +148,22 @@ setInterval(() => {
     broadcast();
 
     console.log(
-      `Hết giờ lượt ${timedOutTurn}. Người thắng: ${winner}`
+      `Het gio luot ${timedOutTurn}. Nguoi thang: ${winner}`
     );
 
     return;
   }
 
-  // CẬP NHẬT ĐỒNG HỒ MỖI GIÂY
   if (remaining !== lastBroadcastSecond) {
     lastBroadcastSecond = remaining;
     broadcast();
   }
 }, 200);
 
-// LÀM SẠCH TÊN TIKTOK
+// =========================================
+// LAM SACH TEN TIKTOK
+// =========================================
+
 function cleanUsername(value) {
   return String(value || "")
     .trim()
@@ -151,7 +172,10 @@ function cleanUsername(value) {
     .slice(0, 40);
 }
 
-// KIỂM TRA TÊN ĐÃ ĐƯỢC SỬ DỤNG
+// =========================================
+// KIEM TRA TEN DA DUOC SU DUNG
+// =========================================
+
 function existsAnywhere(username) {
   const key = username.toLowerCase();
 
@@ -165,7 +189,10 @@ function existsAnywhere(username) {
   );
 }
 
-// KIỂM TRA THẮNG
+// =========================================
+// KIEM TRA THANG
+// =========================================
+
 function checkWin(b, idx, mark) {
   const r = Math.floor(idx / 15);
   const c = idx % 15;
@@ -201,7 +228,10 @@ function checkWin(b, idx, mark) {
   return false;
 }
 
-// KIỂM TRA ADMIN PIN
+// =========================================
+// KIEM TRA ADMIN PIN
+// =========================================
+
 function authAdmin(req, res, next) {
   const pin = req.get("x-admin-pin") || req.body?.pin;
 
@@ -218,7 +248,10 @@ function authAdmin(req, res, next) {
   next();
 }
 
-// THÊM NGƯỜI TẶNG QUÀ ĐÃ XÁC NHẬN
+// =========================================
+// THEM NGUOI TANG QUA DA XAC NHAN
+// =========================================
+
 function addGift({ username, giftName }) {
   const clean = cleanUsername(username);
 
@@ -236,7 +269,10 @@ function addGift({ username, giftName }) {
   return true;
 }
 
-// CẤU HÌNH PHÒNG
+// =========================================
+// CAU HINH PHONG
+// =========================================
+
 app.get("/api/config", (_req, res) => {
   res.json({
     roomName: ROOM_NAME,
@@ -244,12 +280,18 @@ app.get("/api/config", (_req, res) => {
   });
 });
 
-// LẤY TRẠNG THÁI
+// =========================================
+// LAY TRANG THAI
+// =========================================
+
 app.get("/api/state", (_req, res) => {
   res.json(publicState());
 });
 
-// TẠO MÃ QR
+// =========================================
+// TAO MA QR
+// =========================================
+
 app.get("/api/qr", async (req, res) => {
   const base =
     BASE_URL ||
@@ -271,7 +313,10 @@ app.get("/api/qr", async (req, res) => {
   }
 });
 
-// NHẬN SỰ KIỆN QUÀ TẶNG ĐÃ XÁC MINH
+// =========================================
+// NHAN SU KIEN QUA TANG DA XAC MINH
+// =========================================
+
 app.post("/api/gifts", (req, res) => {
   const token = req.get("x-gift-token");
 
@@ -302,7 +347,10 @@ app.post("/api/gifts", (req, res) => {
   res.json({ ok: true });
 });
 
-// CHỦ LIVE THÊM NGƯỜI CHƠI THỦ CÔNG
+// =========================================
+// CHU LIVE THEM NGUOI CHOI THU CONG
+// =========================================
+
 app.post("/api/admin/add-player", authAdmin, (req, res) => {
   const username = cleanUsername(req.body.username);
 
@@ -329,7 +377,10 @@ app.post("/api/admin/add-player", authAdmin, (req, res) => {
   res.json({ ok: true });
 });
 
-// CHỦ LIVE DUYỆT ĐĂNG KÝ
+// =========================================
+// CHU LIVE DUYET DANG KY
+// =========================================
+
 app.post("/api/admin/approve-player", authAdmin, (req, res) => {
   const username = cleanUsername(req.body.username);
 
@@ -356,7 +407,10 @@ app.post("/api/admin/approve-player", authAdmin, (req, res) => {
   res.json({ ok: true });
 });
 
-// CHỦ LIVE TỪ CHỐI ĐĂNG KÝ
+// =========================================
+// CHU LIVE TU CHOI DANG KY
+// =========================================
+
 app.post("/api/admin/reject-player", authAdmin, (req, res) => {
   const username = cleanUsername(req.body.username);
 
@@ -377,7 +431,10 @@ app.post("/api/admin/reject-player", authAdmin, (req, res) => {
   res.json({ ok: true });
 });
 
-// CHỦ LIVE CHỌN NGƯỜI ĐÃ ĐƯỢC DUYỆT
+// =========================================
+// CHU LIVE CHON NGUOI DA DUOC DUYET
+// =========================================
+
 app.post("/api/admin/select", authAdmin, (req, res) => {
   const username = cleanUsername(req.body.username);
 
@@ -411,7 +468,10 @@ app.post("/api/admin/select", authAdmin, (req, res) => {
   res.json({ ok: true });
 });
 
-// CHỦ LIVE ĐÁNH QUÂN X
+// =========================================
+// CHU LIVE DANH QUAN X
+// =========================================
+
 app.post("/api/admin/move", authAdmin, (req, res) => {
   const idx = Number(req.body.index);
 
@@ -447,7 +507,10 @@ app.post("/api/admin/move", authAdmin, (req, res) => {
   res.json({ ok: true });
 });
 
-// KẾT THÚC VÁN / VÁN MỚI
+// =========================================
+// KET THUC VAN / VAN MOI
+// =========================================
+
 app.post("/api/admin/next", authAdmin, (_req, res) => {
   activePlayer = null;
   board = Array(225).fill(null);
@@ -461,7 +524,10 @@ app.post("/api/admin/next", authAdmin, (_req, res) => {
   res.json({ ok: true });
 });
 
-// RESET ĐIỂM
+// =========================================
+// RESET DIEM
+// =========================================
+
 app.post("/api/admin/reset-score", authAdmin, (_req, res) => {
   scores = {
     host: 0,
@@ -473,7 +539,10 @@ app.post("/api/admin/reset-score", authAdmin, (_req, res) => {
   res.json({ ok: true });
 });
 
-// NGƯỜI XEM TỰ ĐĂNG KÝ
+// =========================================
+// NGUOI XEM TU DANG KY
+// =========================================
+
 function registerViewer(socket, username) {
   const clean = cleanUsername(username);
 
@@ -482,45 +551,47 @@ function registerViewer(socket, username) {
     return;
   }
 
-  if (existsAnywhere(clean)) {
-    const pending = pendingQueue.some(
-      p => p.username.toLowerCase() === clean.toLowerCase()
-    );
+  const key = clean.toLowerCase();
 
-    const approved = queue.some(
-      p => p.username.toLowerCase() === clean.toLowerCase()
-    );
+  const pending = pendingQueue.some(
+    p => p.username.toLowerCase() === key
+  );
+
+  const approved = queue.some(
+    p => p.username.toLowerCase() === key
+  );
+
+  const playing =
+    activePlayer &&
+    activePlayer.toLowerCase() === key;
+
+  // CHO PHEP SOCKET MOI KHOI PHUC NGUOI CHOI CU
+  if (pending || approved || playing) {
+    socket.data.username = clean;
+    socket.join("viewers");
 
     if (pending) {
-      socket.data.username = clean;
-      socket.join("viewers");
-
       socket.emit(
         "notice",
         "Yêu cầu đã gửi. Vui lòng chờ chủ LIVE duyệt."
       );
-
-      return;
-    }
-
-    if (
-      approved ||
-      (
-        activePlayer &&
-        activePlayer.toLowerCase() === clean.toLowerCase()
-      )
-    ) {
-      socket.data.username = clean;
-      socket.join("viewers");
-
+    } else if (playing) {
+      socket.emit(
+        "notice",
+        "Bạn đang tham gia trận đấu!"
+      );
+    } else {
       socket.emit(
         "notice",
         "Bạn đã được duyệt. Hãy chờ chủ LIVE chọn đấu."
       );
-
-      return;
     }
 
+    socket.emit("state", publicState());
+    return;
+  }
+
+  if (existsAnywhere(clean)) {
     socket.emit("notice", "Tên này hiện đã được sử dụng.");
     return;
   }
@@ -541,8 +612,13 @@ function registerViewer(socket, username) {
   );
 }
 
-// KẾT NỐI NGƯỜI CHƠI
+// =========================================
+// KET NOI NGUOI CHOI
+// =========================================
+
 io.on("connection", socket => {
+  console.log("Socket connected:", socket.id);
+
   socket.emit("state", publicState());
 
   socket.on("viewer:join", ({ username } = {}) => {
@@ -553,17 +629,25 @@ io.on("connection", socket => {
     registerViewer(socket, username);
   });
 
-  // NGƯỜI XEM ĐÁNH QUÂN O
+  // =======================================
+  // NGUOI XEM DANH QUAN O
+  // =======================================
+
   socket.on("viewer:move", ({ index } = {}) => {
     const username = socket.data.username;
+
+    const rejectMove = message => {
+      socket.emit("viewer:move:rejected", message);
+      socket.emit("notice", message);
+      socket.emit("state", publicState());
+    };
 
     if (
       !username ||
       !activePlayer ||
       username.toLowerCase() !== activePlayer.toLowerCase()
     ) {
-      return socket.emit(
-        "notice",
+      return rejectMove(
         "Bạn chưa được chọn làm đối thủ."
       );
     }
@@ -580,12 +664,12 @@ io.on("connection", socket => {
       !turnDeadline ||
       Date.now() >= turnDeadline
     ) {
-      return socket.emit(
-        "notice",
-        "Chưa đến lượt bạn, đã hết giờ hoặc ô này không hợp lệ."
+      return rejectMove(
+        "Nước đi không hợp lệ. Bàn cờ đang được đồng bộ lại."
       );
     }
 
+    // GHI NHAN NUOC DI
     board[idx] = "O";
     lastMoves.push(idx);
 
@@ -598,11 +682,35 @@ io.on("connection", socket => {
       startTurnTimer();
     }
 
+    // XAC NHAN CHO DUNG SOCKET NGUOI CHOI
+    socket.emit("viewer:move:accepted", {
+      index: idx
+    });
+
     broadcast();
+  });
+
+  socket.on("disconnect", reason => {
+    console.log("Socket disconnected:", socket.id, reason);
   });
 });
 
-// KHỞI ĐỘNG MÁY CHỦ
+// =========================================
+// XU LY LOI MAY CHU
+// =========================================
+
+process.on("uncaughtException", error => {
+  console.error("Uncaught exception:", error);
+});
+
+process.on("unhandledRejection", error => {
+  console.error("Unhandled rejection:", error);
+});
+
+// =========================================
+// KHOI DONG
+// =========================================
+
 server.listen(PORT, "0.0.0.0", () => {
   console.log(`Caro LIVE listening on :${PORT}`);
 });
