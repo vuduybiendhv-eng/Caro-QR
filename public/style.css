@@ -1314,3 +1314,60 @@ footer {
     margin-top: 4px;
   }
 }
+
+/* DONG HO CAT SIEU MINI */
+.timer-section {
+  max-width: 115px;
+  padding: 5px;
+  margin: 5px auto;
+  border-width: 1px;
+  border-radius: 10px;
+}
+
+.timer-heading {
+  font-size: 8px;
+  letter-spacing: 0;
+}
+
+.hourglass-wrap {
+  width: 28px;
+  height: 42px;
+  margin: 2px auto 0;
+}
+
+.timer-number {
+  font-size: 25px;
+  line-height: 1;
+}
+
+.timer-unit {
+  margin-top: 2px;
+  font-size: 7px;
+  letter-spacing: .5px;
+}
+
+.timer-message {
+  margin-top: 3px;
+  font-size: 8px;
+}
+
+@media (max-width: 650px) {
+  .timer-section {
+    max-width: 105px;
+    padding: 4px;
+    margin: 4px auto;
+  }
+
+  .hourglass-wrap {
+    width: 24px;
+    height: 36px;
+  }
+
+  .timer-number {
+    font-size: 22px;
+  }
+
+  .timer-message {
+    font-size: 7px;
+  }
+}
