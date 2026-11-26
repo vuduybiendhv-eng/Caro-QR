@@ -4,6 +4,7 @@
   if (!canvas) return;
 
   const ctx = canvas.getContext("2d");
+  if (!ctx) return;
 
   let w = 0;
   let h = 0;
@@ -12,10 +13,15 @@
   let raf = 0;
   let resultTimer = null;
   let removeTimer = null;
+  let isRunning = false;
 
-  const rand = (min, max) => Math.random() * (max - min) + min;
+  const rand = (min, max) =>
+    Math.random() * (max - min) + min;
 
-  // GIAO DIEN HIEU UNG
+  // =========================
+  // GIAO DIỆN HIỆU ỨNG
+  // =========================
+
   const style = document.createElement("style");
 
   style.textContent = `
@@ -130,24 +136,60 @@
 
   document.head.appendChild(style);
 
-  // KICH THUOC CANVAS
+  // =========================
+  // KÍCH THƯỚC CANVAS
+  // =========================
+
   function resize() {
     const d = Math.min(window.devicePixelRatio || 1, 2);
 
     w = window.innerWidth;
     h = window.innerHeight;
 
-    canvas.width = w * d;
-    canvas.height = h * d;
+    canvas.width = Math.round(w * d);
+    canvas.height = Math.round(h * d);
+
+    canvas.style.width = `${w}px`;
+    canvas.style.height = `${h}px`;
 
     ctx.setTransform(d, 0, 0, d, 0, 0);
   }
 
-  // TAO HOA MAI VA HOA DAO
+  // =========================
+  // KIỂM TRA VÙNG BÀN CỜ
+  // =========================
+
+  function isInsideBoard(x, y, margin = 12) {
+    const board = document.getElementById("board");
+    if (!board) return false;
+
+    const rect = board.getBoundingClientRect();
+
+    if (
+      rect.width <= 0 ||
+      rect.height <= 0 ||
+      rect.bottom < 0 ||
+      rect.top > h
+    ) {
+      return false;
+    }
+
+    return (
+      x >= rect.left - margin &&
+      x <= rect.right + margin &&
+      y >= rect.top - margin &&
+      y <= rect.bottom + margin
+    );
+  }
+
+  // =========================
+  // TẠO HOA MAI / HOA ĐÀO
+  // =========================
+
   function makeFlower() {
-    return {
-      x: rand(-20, w + 20),
-      y: rand(-h, 0),
+    let flower = {
+      x: rand(0, w),
+      y: rand(-h, -10),
       size: rand(6, 11),
       speed: rand(.35, .9),
       drift: rand(-.35, .35),
@@ -157,12 +199,32 @@
       swaySpeed: rand(.008, .018),
       type: Math.random() < .5 ? "mai" : "dao"
     };
+
+    // Nếu vị trí ban đầu nằm trên bàn cờ,
+    // đưa hoa ra ngoài vùng bàn cờ.
+    if (isInsideBoard(flower.x, 0, 20)) {
+      const board = document.getElementById("board");
+
+      if (board) {
+        const rect = board.getBoundingClientRect();
+
+        flower.x = Math.random() < .5
+          ? rect.left - 25
+          : rect.right + 25;
+      }
+    }
+
+    return flower;
   }
 
-  // VE MOT CANH HOA
+  // =========================
+  // VẼ CÁNH HOA
+  // =========================
+
   function drawPetal(size, color, highlight) {
     ctx.fillStyle = color;
     ctx.beginPath();
+
     ctx.ellipse(
       0,
       -size * .62,
@@ -172,10 +234,12 @@
       0,
       Math.PI * 2
     );
+
     ctx.fill();
 
     ctx.fillStyle = highlight;
     ctx.beginPath();
+
     ctx.ellipse(
       -size * .08,
       -size * .72,
@@ -185,10 +249,14 @@
       0,
       Math.PI * 2
     );
+
     ctx.fill();
   }
 
-  // VE HOA MAI 5 CANH / HOA DAO 5 CANH
+  // =========================
+  // VẼ HOA MAI / HOA ĐÀO
+  // =========================
+
   function drawFlower(flower) {
     ctx.save();
 
@@ -211,7 +279,6 @@
       ctx.restore();
     }
 
-    // NHUY HOA
     ctx.fillStyle = centerColor;
     ctx.beginPath();
     ctx.arc(0, 0, s * .19, 0, Math.PI * 2);
@@ -225,11 +292,27 @@
     ctx.restore();
   }
 
-  // TAO HAT HIEU UNG
+  // =========================
+  // TẠO PHÁO GIẤY
+  // =========================
+
   function burst(x, y, count = 80, type = "win") {
     const colors = type === "defeat"
-      ? ["#8bd8ff", "#b8e8ff", "#d9f5ff", "#659de0", "#ffffff"]
-      : ["#ffe36e", "#ffb52e", "#fff3a0", "#ff7aa8", "#8df5cf", "#ffffff"];
+      ? [
+          "#8bd8ff",
+          "#b8e8ff",
+          "#d9f5ff",
+          "#659de0",
+          "#ffffff"
+        ]
+      : [
+          "#ffe36e",
+          "#ffb52e",
+          "#fff3a0",
+          "#ff7aa8",
+          "#8df5cf",
+          "#ffffff"
+        ];
 
     for (let i = 0; i < count; i++) {
       const angle = rand(0, Math.PI * 2);
@@ -246,6 +329,7 @@
         max: life,
         radius: rand(2, 5),
         rotation: rand(0, 6),
+        spin: rand(-.12, .12),
         color: colors[Math.floor(rand(0, colors.length))],
         kind: type === "defeat"
           ? (Math.random() < .5 ? "drop" : "spark")
@@ -254,7 +338,10 @@
     }
   }
 
-  // VE HAT PHAO HOA
+  // =========================
+  // VẼ HẠT HIỆU ỨNG
+  // =========================
+
   function drawParticles() {
     for (let i = particles.length - 1; i >= 0; i--) {
       const p = particles[i];
@@ -262,6 +349,7 @@
       p.x += p.vx;
       p.y += p.vy;
       p.vy += p.gravity;
+      p.rotation += p.spin;
       p.life--;
 
       ctx.globalAlpha = Math.max(0, p.life / p.max);
@@ -273,23 +361,30 @@
         ctx.fill();
       } else if (p.kind === "drop") {
         ctx.beginPath();
+
         ctx.ellipse(
-          p.x, p.y,
+          p.x,
+          p.y,
           p.radius * .65,
           p.radius * 1.5,
-          0, 0, Math.PI * 2
+          0,
+          0,
+          Math.PI * 2
         );
+
         ctx.fill();
       } else {
         ctx.save();
         ctx.translate(p.x, p.y);
         ctx.rotate(p.rotation);
+
         ctx.fillRect(
           -p.radius,
           -p.radius / 2,
           p.radius * 2,
           p.radius
         );
+
         ctx.restore();
       }
 
@@ -301,8 +396,13 @@
     ctx.globalAlpha = 1;
   }
 
-  // VONG LAP HOA ROI
+  // =========================
+  // VÒNG LẶP HOA RƠI
+  // =========================
+
   function tick() {
+    if (!isRunning) return;
+
     ctx.clearRect(0, 0, w, h);
 
     for (const flower of flowers) {
@@ -310,58 +410,68 @@
 
       flower.sway += flower.swaySpeed;
       flower.x += flower.drift + Math.sin(flower.sway) * .45;
-
       flower.rot += flower.spin;
 
       if (flower.y > h + 25) {
         Object.assign(flower, makeFlower(), {
-          y: -25,
-          x: rand(0, w)
+          y: -25
         });
       }
 
-            // KHÔNG VẼ HOA ĐÈ LÊN BÀN CỜ
-      const board = document.getElementById("board");
-      let avoidBoard = false;
+      // Không vẽ hoa trong khu vực bàn cờ.
+      const margin = flower.size + 8;
 
-      if (board) {
-        const rect = board.getBoundingClientRect();
-        const margin = flower.size + 5;
-
-        avoidBoard =
-          flower.x > rect.left - margin &&
-          flower.x < rect.right + margin &&
-          flower.y > rect.top - margin &&
-          flower.y < rect.bottom + margin;
-      }
-
-      if (!avoidBoard) {
+      if (!isInsideBoard(flower.x, flower.y, margin)) {
         drawFlower(flower);
       }
     }
 
     drawParticles();
+
     raf = requestAnimationFrame(tick);
   }
 
   function start() {
     cancelAnimationFrame(raf);
+
     resize();
 
     flowers = Array.from(
-      { length: Math.max(15, Math.min(32, Math.round(w / 16))) },
+      {
+        length: Math.max(
+          15,
+          Math.min(32, Math.round(w / 16))
+        )
+      },
       makeFlower
     );
 
+    isRunning = true;
     tick();
   }
 
-  // HIEU UNG KHI DANH QUAN
-  function move() {
-    burst(w / 2, h / 2, 22, "win");
+  function stop() {
+    isRunning = false;
+    cancelAnimationFrame(raf);
   }
 
-  // HIEN ANH WIN HOAC DEFEAT
+  // =========================
+  // HIỆU ỨNG KHI ĐÁNH QUÂN
+  // =========================
+
+  function move() {
+    // Hiệu ứng nhẹ, không tạo pháo giấy lớn
+    // che bàn cờ mỗi lần đánh.
+    const x = w / 2;
+    const y = h / 2;
+
+    burst(x, y, 5, "win");
+  }
+
+  // =========================
+  // HIỆU ỨNG KẾT QUẢ
+  // =========================
+
   function showResult(type, message) {
     let overlay = document.getElementById("caroResultOverlay");
 
@@ -386,6 +496,10 @@
     img.className = "result-animation";
     img.src = image;
     img.alt = isDefeat ? "DEFEAT" : "WIN";
+
+    img.onerror = () => {
+      img.style.display = "none";
+    };
 
     const title = document.createElement("div");
     title.className = "result-title";
@@ -428,7 +542,10 @@
       overlay.classList.remove("show");
 
       removeTimer = setTimeout(() => {
-        if (overlay && !overlay.classList.contains("show")) {
+        if (
+          overlay &&
+          !overlay.classList.contains("show")
+        ) {
           overlay.remove();
         }
       }, 350);
@@ -443,16 +560,25 @@
     showResult("defeat", message || "CỐ GẮNG Ở VÁN SAU NHÉ!");
   }
 
-  window.addEventListener("resize", resize);
+  // =========================
+  // SỰ KIỆN TRÌNH DUYỆT
+  // =========================
+
+  window.addEventListener("resize", () => {
+    resize();
+  });
 
   document.addEventListener("visibilitychange", () => {
     if (document.hidden) {
-      cancelAnimationFrame(raf);
+      stop();
     } else {
-      cancelAnimationFrame(raf);
-      tick();
+      start();
     }
   });
+
+  // =========================
+  // KHỞI ĐỘNG
+  // =========================
 
   start();
 
@@ -460,6 +586,9 @@
     move,
     celebrate,
     defeat,
-    win: (message) => showResult("win", message || "CHIẾN THẮNG!")
+    win: message => showResult(
+      "win",
+      message || "CHIẾN THẮNG!"
+    )
   };
 })();
