@@ -11,6 +11,7 @@
    - Kết thúc ván
    - Reset điểm
    - Âm thanh và hiệu ứng
+   - EMOJI BAY NỔI TRÊN BÀN CỜ
 ========================================================= */
 
 (() => {
@@ -37,6 +38,173 @@
   let hostAuthenticated = false;
   let cells = [];
   let chatMessages = [];
+
+  // ========================================================
+  // EMOJI REACTIONS
+  // ========================================================
+
+  const reactionList = [
+    "❤️", "😂", "😍", "🔥", "👏",
+    "👍", "😮", "😭", "🤣", "🎉",
+    "💪", "🥰", "💖", "⭐", "😎"
+  ];
+
+  function installReactionAnimation() {
+    if ($("caroReactionStyle")) return;
+
+    const style = document.createElement("style");
+    style.id = "caroReactionStyle";
+
+    style.textContent = `
+      @keyframes caroReactionFloat {
+        0% {
+          opacity: 0;
+          transform: translate(-50%, 15px) scale(.6) rotate(-10deg);
+        }
+
+        15% {
+          opacity: 1;
+        }
+
+        70% {
+          opacity: 1;
+          transform: translate(-50%, -65px) scale(1.2) rotate(10deg);
+        }
+
+        100% {
+          opacity: 0;
+          transform: translate(-50%, -110px) scale(.8) rotate(-8deg);
+        }
+      }
+
+      #reactionToolbar {
+        display: flex;
+        flex-wrap: wrap;
+        justify-content: center;
+        align-items: center;
+        gap: 7px;
+        padding: 10px 4px;
+      }
+
+      #reactionToolbar button {
+        min-width: 38px;
+        min-height: 38px;
+        padding: 4px;
+        border-radius: 12px;
+        font-size: 23px;
+        cursor: pointer;
+        touch-action: manipulation;
+      }
+
+      #reactionToolbar button:disabled {
+        opacity: .4;
+        cursor: not-allowed;
+      }
+
+      #reactionOverlay {
+        position: absolute;
+        inset: 0;
+        overflow: hidden;
+        pointer-events: none;
+        z-index: 50;
+      }
+    `;
+
+    document.head.appendChild(style);
+  }
+
+  function showFloatingReaction(data) {
+    const overlay = $("reactionOverlay");
+
+    if (
+      !overlay ||
+      !data ||
+      !reactionList.includes(data.emoji)
+    ) {
+      return;
+    }
+
+    const item = document.createElement("span");
+
+    item.textContent = data.emoji;
+
+    const x = Math.max(10, Math.min(90, Number(data.x) || 50));
+    const y = Math.max(10, Math.min(90, Number(data.y) || 50));
+
+    item.style.cssText = `
+      position: absolute;
+      left: ${x}%;
+      top: ${y}%;
+      font-size: clamp(25px, 5vw, 42px);
+      pointer-events: none;
+      transform: translate(-50%, 0);
+      animation: caroReactionFloat 2.2s ease-out forwards;
+      filter: drop-shadow(0 3px 5px rgba(0,0,0,.35));
+      will-change: transform, opacity;
+    `;
+
+    overlay.appendChild(item);
+
+    setTimeout(() => {
+      item.remove();
+    }, 2300);
+  }
+
+  function setupReactions() {
+    if (!boardEl || $("reactionToolbar")) return;
+
+    // Tạo lớp phủ tuyệt đối, không làm thay đổi lưới bàn cờ.
+    boardEl.style.position = "relative";
+    boardEl.style.overflow = "hidden";
+
+    const overlay = document.createElement("div");
+    overlay.id = "reactionOverlay";
+    overlay.setAttribute("aria-hidden", "true");
+
+    boardEl.appendChild(overlay);
+
+    const toolbar = document.createElement("div");
+    toolbar.id = "reactionToolbar";
+
+    reactionList.forEach(emoji => {
+      const button = document.createElement("button");
+
+      button.type = "button";
+      button.textContent = emoji;
+      button.title = "Gửi biểu cảm " + emoji;
+      button.setAttribute("aria-label", "Gửi emoji " + emoji);
+
+      button.addEventListener("click", () => {
+        if (!hostAuthenticated) {
+          setText("chatNotice", "Vui lòng đăng nhập Admin PIN.");
+          return;
+        }
+
+        if (!state?.activePlayer || state.winner) {
+          setText("chatNotice", "Hiện chưa có trận đấu.");
+          return;
+        }
+
+        if (!socket.connected) {
+          setText("chatNotice", "Mất kết nối máy chủ.");
+          return;
+        }
+
+        socket.emit("reaction:send", {
+          emoji,
+          x: 15 + Math.random() * 70,
+          y: 35 + Math.random() * 35
+        });
+      });
+
+      toolbar.appendChild(button);
+    });
+
+    // Thanh emoji nằm bên dưới bàn cờ, không nằm trong chat.
+    boardEl.parentElement.appendChild(toolbar);
+  }
+
+  socket.on("reaction:show", showFloatingReaction);
 
   // ========================================================
   // TIỆN ÍCH
@@ -303,8 +471,6 @@
     if (cells.length !== 225) {
       createBoard();
     }
-
-    const lastIndex = getLastMoveIndex(s);
 
     s.board.forEach((value, index) => {
       const cell = cells[index];
@@ -1019,6 +1185,9 @@
   // ========================================================
 
   createBoard();
+  installReactionAnimation();
+  setupReactions();
+
   renderChat();
   updateSoundButton();
   updateFixedButtons();
