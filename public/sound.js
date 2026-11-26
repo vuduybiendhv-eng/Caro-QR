@@ -1,10 +1,28 @@
 
+/* =========================================================
+   CARO LIVE - SOUND.JS
+   Âm thanh MP3 thắng/thua và âm báo nước đi.
+   Nút bật/tắt chỉ hiển thị biểu tượng.
+   ========================================================= */
+
 (() => {
   "use strict";
 
   let enabled = false;
   let audioContext = null;
   let button = null;
+
+  // MP3 trong thư mục public
+  const audioFiles = {
+    win: "/win.mp3",
+    defeat: "/defeat.mp3"
+  };
+
+  const audioCache = {};
+
+  // -------------------------------------------------------
+  // NÚT ÂM THANH
+  // -------------------------------------------------------
 
   function getButton() {
     if (!button) {
@@ -17,20 +35,21 @@
     const btn = getButton();
     if (!btn) return;
 
-    btn.textContent = enabled
-      ? "🔊 Âm thanh: ĐANG BẬT"
-      : "🔇 Âm thanh: ĐANG TẮT";
-
+    btn.textContent = enabled ? "🔊" : "🔇";
+    btn.setAttribute("aria-label", enabled ? "Tắt âm thanh" : "Bật âm thanh");
     btn.setAttribute("aria-pressed", String(enabled));
+    btn.title = enabled ? "Tắt âm thanh" : "Bật âm thanh";
   }
 
-  function getAudioContext() {
-    const AudioCtx = window.AudioContext || window.webkitAudioContext;
+  // -------------------------------------------------------
+  // MỞ AUDIO CONTEXT CHO ANDROID
+  // -------------------------------------------------------
 
-    if (!AudioCtx) {
-      console.warn("Trình duyệt không hỗ trợ Web Audio.");
-      return null;
-    }
+  function getAudioContext() {
+    const AudioCtx =
+      window.AudioContext || window.webkitAudioContext;
+
+    if (!AudioCtx) return null;
 
     if (!audioContext || audioContext.state === "closed") {
       audioContext = new AudioCtx();
@@ -55,22 +74,25 @@
     }
   }
 
-  function playToneNow(
+  // -------------------------------------------------------
+  // ÂM BÁO NƯỚC ĐI
+  // -------------------------------------------------------
+
+  function playTone(
     frequency,
     duration,
     type = "sine",
-    volume = 0.15,
-    delay = 0
+    volume = 0.15
   ) {
-    const ctx = audioContext;
+    if (!enabled) return;
 
+    const ctx = getAudioContext();
     if (!ctx || ctx.state !== "running") return;
 
     try {
-      const start = ctx.currentTime + delay;
-
       const oscillator = ctx.createOscillator();
       const gain = ctx.createGain();
+      const start = ctx.currentTime;
 
       oscillator.type = type;
       oscillator.frequency.setValueAtTime(frequency, start);
@@ -96,51 +118,71 @@
         gain.disconnect();
       };
     } catch (error) {
-      console.warn("Lỗi phát âm thanh:", error);
+      console.warn("Lỗi âm báo:", error);
     }
   }
 
-  async function playTone(
-    frequency,
-    duration,
-    type = "sine",
-    volume = 0.15,
-    delay = 0
-  ) {
-    if (!enabled) return;
-
-    const ready = await unlockAudio();
-
-    if (!ready || !enabled) return;
-
-    playToneNow(frequency, duration, type, volume, delay);
-  }
-
   function playMove() {
-    playTone(620, 0.09, "sine", 0.20);
+    playTone(620, 0.09, "sine", 0.18);
   }
 
   function playJoin() {
-    playTone(700, 0.10, "sine", 0.16, 0);
-    playTone(900, 0.12, "sine", 0.18, 0.13);
+    playTone(700, 0.10, "sine", 0.16);
+
+    setTimeout(() => {
+      playTone(900, 0.12, "sine", 0.18);
+    }, 130);
   }
 
   function playReset() {
     playTone(500, 0.10, "sine", 0.15);
   }
 
+  // -------------------------------------------------------
+  // PHÁT MP3
+  // -------------------------------------------------------
+
+  function getAudio(name) {
+    if (!audioCache[name]) {
+      const file = audioFiles[name];
+      if (!file) return null;
+
+      const audio = new Audio(file);
+      audio.preload = "auto";
+      audio.volume = 1;
+
+      audioCache[name] = audio;
+    }
+
+    return audioCache[name];
+  }
+
+  async function playMP3(name) {
+    if (!enabled) return;
+
+    const audio = getAudio(name);
+    if (!audio) return;
+
+    try {
+      audio.pause();
+      audio.currentTime = 0;
+      await audio.play();
+    } catch (error) {
+      console.warn(`Không phát được ${name}.mp3:`, error);
+    }
+  }
+
   function playWin() {
-    playTone(523, 0.18, "sine", 0.20, 0);
-    playTone(659, 0.18, "sine", 0.20, 0.17);
-    playTone(784, 0.22, "sine", 0.22, 0.34);
-    playTone(1047, 0.42, "sine", 0.24, 0.55);
+    playMP3("win");
   }
 
   function playDefeat() {
-    playTone(440, 0.22, "triangle", 0.18, 0);
-    playTone(349, 0.25, "triangle", 0.18, 0.21);
-    playTone(262, 0.42, "triangle", 0.20, 0.45);
+    playMP3("defeat");
   }
+
+  // -------------------------------------------------------
+  // BẬT / TẮT
+  // -------------------------------------------------------
 
   async function toggle() {
     enabled = !enabled;
@@ -150,14 +192,22 @@
       const ready = await unlockAudio();
 
       if (ready && enabled) {
-        playToneNow(660, 0.14, "sine", 0.20);
-      } else {
-        console.warn("Âm thanh chưa sẵn sàng trên thiết bị.");
+        playTone(660, 0.12, "sine", 0.16);
       }
+    } else {
+      // Tắt ngay cả âm thanh MP3 đang phát.
+      Object.values(audioCache).forEach(audio => {
+        audio.pause();
+        audio.currentTime = 0;
+      });
     }
 
     return enabled;
   }
+
+  // -------------------------------------------------------
+  // API DÙNG CHO CLIENT.JS VÀ ADMIN.JS
+  // -------------------------------------------------------
 
   window.CaroSound = {
     toggle,
@@ -168,6 +218,10 @@
     win: playWin,
     defeat: playDefeat
   };
+
+  // -------------------------------------------------------
+  // GẮN NÚT MỘT LẦN
+  // -------------------------------------------------------
 
   function setupButton() {
     const btn = getButton();
@@ -181,12 +235,14 @@
   }
 
   if (document.readyState === "loading") {
-    document.addEventListener("DOMContentLoaded", setupButton, {
-      once: true
-    });
+    document.addEventListener(
+      "DOMContentLoaded",
+      setupButton,
+      { once: true }
+    );
   } else {
     setupButton();
   }
 
-  console.log("Caro LIVE Sound đã sẵn sàng.");
+  console.log("Caro LIVE Sound MP3 đã sẵn sàng.");
 })();
