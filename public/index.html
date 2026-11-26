@@ -7,7 +7,7 @@
   <meta name="theme-color" content="#713d20">
   <meta name="description" content="Caro LIVE - Thách đấu chủ LIVE, chơi Caro trực tuyến 15x15.">
   <title>Caro LIVE - Phòng Caro 15×15</title>
-  <link rel="stylesheet" href="/style.css?v=9">
+  <link rel="stylesheet" href="/style.css?v=10">
 </head>
 
 <body>
@@ -51,29 +51,6 @@
         <span class="stone-preview black-stone"></span>
       </div>
 
-    </section>
-
-    <!-- ĐĂNG KÝ NGƯỜI XEM -->
-    <section class="join viewer-join">
-      <label for="username">Tên TikTok của bạn</label>
-
-      <div class="joinrow">
-        <input
-          id="username"
-          type="text"
-          maxlength="24"
-          placeholder="@ten_tiktok"
-          autocomplete="off"
-          autocapitalize="none">
-
-        <button id="join" type="button">
-          VÀO PHÒNG CHỜ
-        </button>
-      </div>
-
-      <div id="notice" role="status" aria-live="polite">
-        Quét QR, nhập tên TikTok và vào phòng chờ.
-      </div>
     </section>
 
     <!-- TRẠNG THÁI VÀ ÂM THANH -->
@@ -253,6 +230,29 @@
         loading="lazy">
 
       <p>Quét mã để mở phòng Caro LIVE</p>
+    </section>
+
+    <!-- ĐĂNG KÝ NGƯỜI XEM - ĐÃ CHUYỂN XUỐNG CUỐI -->
+    <section class="join viewer-join" id="joinSection">
+      <label for="username">Tên TikTok của bạn</label>
+
+      <div class="joinrow">
+        <input
+          id="username"
+          type="text"
+          maxlength="24"
+          placeholder="@ten_tiktok"
+          autocomplete="off"
+          autocapitalize="none">
+
+        <button id="join" type="button">
+          VÀO PHÒNG CHỜ
+        </button>
+      </div>
+
+      <div id="notice" role="status" aria-live="polite">
+        Quét QR, nhập tên TikTok và vào phòng chờ.
+      </div>
     </section>
 
     <footer class="game-footer">
