@@ -3,29 +3,46 @@
 <html lang="vi">
 <head>
   <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover">
   <meta name="theme-color" content="#713d20">
-  <title>Caro Live</title>
-  <link rel="stylesheet" href="/style.css?v=6">
+  <meta name="description" content="Caro LIVE - Thách đấu chủ LIVE, chơi Caro trực tuyến 15x15.">
+  <title>Caro LIVE - Phòng Caro 15×15</title>
+
+  <!-- GIAO DIEN -->
+  <link rel="stylesheet" href="/style.css?v=8">
 </head>
 
 <body>
+
+  <!-- HIỆU ỨNG CHIẾN THẮNG -->
   <canvas id="celebrationCanvas" aria-hidden="true"></canvas>
-  <div id="victoryBanner" class="victory-banner" aria-live="polite"></div>
+  <div
+    id="victoryBanner"
+    class="victory-banner"
+    aria-live="polite">
+  </div>
 
   <main class="wrap caro-layout">
 
-    <!-- HAI NGUOI CHOI -->
+    <!-- =====================================
+         HAI NHAN VAT CHIBI
+         ===================================== -->
+
     <section class="arena-players">
 
+      <!-- CHU LIVE - QUAN X -->
       <div class="player-card host-player">
+
         <div class="avatar3d">
-          <img src="/caro-host-chibi.png" alt="Chủ LIVE">
+          <img
+            src="/caro-host-chibi.png"
+            alt="Nhân vật chủ LIVE"
+            onerror="this.style.display='none'">
         </div>
 
         <div class="player-meta">
           <b id="host">@mbbb1118</b>
-          <small>CHỦ LIVE · QUÂN TRẮNG</small>
+          <small>CHỦ LIVE · QUÂN X ĐỎ</small>
           <strong id="hostScore">0</strong>
         </div>
 
@@ -34,14 +51,19 @@
 
       <div class="versus">VS</div>
 
+      <!-- NGUOI XEM - QUAN O -->
       <div class="player-card viewer-player">
+
         <div class="avatar3d">
-          <img src="/caro-viewer-chibi.png" alt="Người xem">
+          <img
+            src="/caro-viewer-chibi.png"
+            alt="Nhân vật người xem"
+            onerror="this.style.display='none'">
         </div>
 
         <div class="player-meta">
           <b id="opponent">Chưa chọn</b>
-          <small>NGƯỜI XEM · QUÂN ĐEN</small>
+          <small>NGƯỜI XEM · QUÂN O ĐEN</small>
           <strong id="viewerScore">0</strong>
         </div>
 
@@ -50,32 +72,73 @@
 
     </section>
 
-    <!-- TRANG THAI -->
+    <!-- =====================================
+         TRANG THAI VA AM THANH
+         ===================================== -->
+
     <section class="game-status">
-      <div class="status" id="status">Đang kết nối…</div>
+
+      <div
+        class="status"
+        id="status"
+        aria-live="polite">
+        Đang kết nối máy chủ...
+      </div>
 
       <div class="soundbar">
-        <button id="soundToggle" type="button">
-          🔊 Bật âm thanh
+
+        <button
+          id="soundToggle"
+          type="button"
+          aria-pressed="false">
+          🔇 Âm thanh: ĐANG TẮT
         </button>
+
       </div>
+
     </section>
 
-    <!-- KHU VUC TRO CHOI -->
+    <!-- =====================================
+         KHU VUC TRO CHOI
+         ===================================== -->
+
     <section class="game-area">
 
-      <nav class="game-nav">
-        <div class="nav-item">👥 <span>Phòng chờ</span></div>
-        <div class="nav-item">🎮 <span>Đang chơi</span></div>
-        <div class="nav-item">🏆 <span>BXH</span></div>
-        <div class="nav-item">📖 <span>Luật chơi</span></div>
-        <div class="nav-item">⚙️ <span>Cài đặt</span></div>
+      <!-- THANH DIEU HUONG -->
+      <nav class="game-nav" aria-label="Điều hướng">
+
+        <div class="nav-item">
+          👥
+          <span>Phòng chờ</span>
+        </div>
+
+        <div class="nav-item">
+          🎮
+          <span>Đang chơi</span>
+        </div>
+
+        <div class="nav-item">
+          🏆
+          <span>BXH</span>
+        </div>
+
+        <div class="nav-item">
+          📖
+          <span>Luật chơi</span>
+        </div>
+
+        <div class="nav-item">
+          ⚙️
+          <span>Cài đặt</span>
+        </div>
+
       </nav>
 
-      <!-- BAN CO VA QR -->
+      <!-- COT BAN CO -->
       <div class="board-column">
 
         <div class="board-panel">
+
           <div class="board-heading">
             BÀN CỜ CARO · 15×15
           </div>
@@ -83,31 +146,45 @@
           <div
             class="board"
             id="board"
-            aria-label="Bàn cờ caro 15 nhân 15">
+            role="group"
+            aria-label="Bàn cờ Caro 15 nhân 15">
           </div>
+
         </div>
 
-        <!-- QR VA DONG HO NAM CANH NHAU -->
+        <!-- QR VA DONG HO -->
         <div class="qr-timer-row">
 
+          <!-- QR THAM GIA -->
           <div class="qr-card">
+
             <h3>📱 QUÉT QR ĐỂ THAM GIA</h3>
 
             <img
               src="https://api.qrserver.com/v1/create-qr-code/?size=500x500&amp;margin=15&amp;data=https%3A%2F%2Fcaro-qr-production-fe079703.up.railway.app%2Fplay"
-              alt="QR mở trực tiếp trang chơi Caro Live">
+              alt="QR tham gia phòng Caro LIVE"
+              loading="lazy">
 
-            <p>Quét mã để vào phòng Caro Live</p>
+            <p>
+              Quét mã để vào phòng Caro LIVE
+            </p>
+
           </div>
 
-          <!-- DONG HO CAT DEM NGUOC -->
-          <section class="timer-section timer-idle" id="timerPanel">
+          <!-- DONG HO CAT -->
+          <section
+            class="timer-section timer-idle"
+            id="timerPanel"
+            aria-live="polite">
 
-            <div class="timer-heading" id="timerOwner">
+            <div
+              class="timer-heading"
+              id="timerOwner">
               ⏳ ĐANG CHỜ LƯỢT CHƠI
             </div>
 
             <div class="hourglass-wrap">
+
               <svg
                 class="hourglass"
                 id="hourglass"
@@ -116,10 +193,29 @@
                 aria-label="Đồng hồ cát đếm ngược">
 
                 <defs>
-                  <linearGradient id="glassGradient" x1="0" y1="0" x2="1" y2="0">
-                    <stop offset="0%" stop-color="#ffffff" stop-opacity=".18"/>
-                    <stop offset="50%" stop-color="#ffffff" stop-opacity=".65"/>
-                    <stop offset="100%" stop-color="#ffffff" stop-opacity=".12"/>
+
+                  <linearGradient
+                    id="glassGradient"
+                    x1="0"
+                    y1="0"
+                    x2="1"
+                    y2="0">
+
+                    <stop
+                      offset="0%"
+                      stop-color="#ffffff"
+                      stop-opacity=".18"/>
+
+                    <stop
+                      offset="50%"
+                      stop-color="#ffffff"
+                      stop-opacity=".65"/>
+
+                    <stop
+                      offset="100%"
+                      stop-color="#ffffff"
+                      stop-opacity=".12"/>
+
                   </linearGradient>
 
                   <clipPath id="topSandClip">
@@ -129,6 +225,7 @@
                   <clipPath id="bottomSandClip">
                     <path d="M60 92 C78 112 90 125 90 160 H30 C30 125 42 112 60 92Z"/>
                   </clipPath>
+
                 </defs>
 
                 <path
@@ -140,11 +237,17 @@
                   stroke-linecap="round"/>
 
                 <g clip-path="url(#topSandClip)">
-                  <path id="topSand" class="sand-top" d="M30 25 H90 V88 H30Z"/>
+                  <path
+                    id="topSand"
+                    class="sand-top"
+                    d="M30 25 H90 V88 H30Z"/>
                 </g>
 
                 <g clip-path="url(#bottomSandClip)">
-                  <path id="bottomSand" class="sand-bottom" d="M30 160 H90 V160 H30Z"/>
+                  <path
+                    id="bottomSand"
+                    class="sand-bottom"
+                    d="M30 160 H90 V160 H30Z"/>
                 </g>
 
                 <path
@@ -154,69 +257,106 @@
                   fill="none"
                   stroke-width="3"
                   stroke-linecap="round"/>
+
               </svg>
+
             </div>
 
-            <div class="timer-number" id="timerNumber">30</div>
-            <div class="timer-unit">GIÂY CÒN LẠI</div>
+            <div
+              class="timer-number"
+              id="timerNumber">
+              30
+            </div>
 
-            <div class="timer-message" id="timerMessage">
+            <div class="timer-unit">
+              GIÂY CÒN LẠI
+            </div>
+
+            <div
+              class="timer-message"
+              id="timerMessage">
               Chờ bắt đầu trận đấu
             </div>
 
           </section>
+
         </div>
+
       </div>
 
-      <!-- THONG TIN BEN PHAI -->
+      <!-- =====================================
+           SIDEBAR
+           ===================================== -->
+
       <aside class="game-sidebar">
 
         <div class="sidebar-card live-card">
+
           <h2>🔴 LIVE ĐANG CHẠY</h2>
+
           <p>👀 Chào mừng người xem!</p>
+
           <p>🎁 Tham gia thách đấu chủ LIVE.</p>
+
         </div>
 
         <div class="sidebar-card">
-          <h2>⚪ LƯỢT CHƠI</h2>
+
+          <h2>🔴 LƯỢT CHƠI</h2>
 
           <div class="turn-item">
             <span class="stone-preview white-stone"></span>
-            <span>Chủ LIVE (Trắng)</span>
+            <span>Chủ LIVE · Quân X</span>
           </div>
 
           <div class="turn-item">
             <span class="stone-preview black-stone"></span>
-            <span>Người xem (Đen)</span>
+            <span>Người xem · Quân O</span>
           </div>
+
         </div>
 
         <div class="sidebar-card">
+
           <h2>🎁 THAM GIA</h2>
+
           <p>
             Vào phòng, tặng quà trên LIVE
             và chờ chủ phòng xác nhận.
           </p>
+
         </div>
 
       </aside>
+
     </section>
 
-    <!-- DANG KY THAM GIA -->
+    <!-- =====================================
+         FORM DANG KY
+         ===================================== -->
+
     <section class="join">
 
-      <label for="username">Tên TikTok của bạn</label>
+      <label for="username">
+        Tên TikTok của bạn
+      </label>
 
       <div class="joinrow">
+
         <input
           id="username"
           type="text"
+          maxlength="24"
           placeholder="Ví dụ: ten_tiktok"
-          autocomplete="off">
+          autocomplete="off"
+          autocapitalize="none">
 
-        <button id="join" type="button">
+        <button
+          id="join"
+          type="button">
           Vào phòng
         </button>
+
       </div>
 
       <p>
@@ -224,16 +364,28 @@
         chờ xác nhận và chủ phòng chọn bạn.
       </p>
 
-      <div id="notice"></div>
+      <div
+        id="notice"
+        role="status"
+        aria-live="polite">
+      </div>
+
     </section>
 
-    <!-- KHUNG TRO CHUYEN -->
+    <!-- =====================================
+         KHUNG TRO CHUYEN
+         ===================================== -->
+
     <section class="chat-panel">
+
       <span>💬</span>
+
       <span class="chat-placeholder">
         Khung trò chuyện sẽ được tích hợp ở bước tiếp theo
       </span>
+
       <span>😊</span>
+
     </section>
 
     <footer>
@@ -243,14 +395,23 @@
 
   </main>
 
-  <!-- CAC SCRIPT TRO CHOI -->
-  
-<script src="/socket.io/socket.io.js"></script>
-<script src="/sound.js?v=6"></script>
-<script src="/music.js?v=5"></script>
-<script src="/effects.js?v=5"></script>
-<script src="/client.js?v=8"></script>
+  <!-- =====================================
+       CAC SCRIPT
+       ===================================== -->
 
+  <script src="/socket.io/socket.io.js"></script>
+
+  <!-- AM THANH -->
+  <script src="/sound.js?v=6"></script>
+
+  <!-- NHAC NEN -->
+  <script src="/music.js?v=5"></script>
+
+  <!-- HIEU UNG -->
+  <script src="/effects.js?v=5"></script>
+
+  <!-- LOGIC NGUOI CHOI -->
+  <script src="/client.js?v=8"></script>
 
 </body>
 </html>
