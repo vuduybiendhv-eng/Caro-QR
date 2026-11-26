@@ -22,6 +22,7 @@ const HOST_TIKTOK = process.env.HOST_TIKTOK || "@mbbb1118";
 const ADMIN_PIN = process.env.ADMIN_PIN || "CHANGE_ME";
 const GIFT_TOKEN = process.env.GIFT_WEBHOOK_TOKEN || "CHANGE_ME";
 const BASE_URL = (process.env.PUBLIC_BASE_URL || "").replace(/\/$/, "");
+
 const TURN_TIME = 30;
 const CHAT_LIMIT = 50;
 
@@ -42,9 +43,6 @@ let winner = null;
 let activePlayer = null;
 
 let queue = [];
-
-// Giữ biến này để tương thích API cũ.
-// Người chơi mới không còn phải chờ duyệt.
 let pendingQueue = [];
 
 let scores = { host: 0, viewers: 0 };
@@ -103,7 +101,6 @@ function publicState() {
       at
     })),
 
-    // Luôn rỗng trong luồng đăng ký mới.
     pendingQueue: [],
 
     scores: { ...scores },
@@ -134,7 +131,6 @@ function startNewRound() {
   chatMessages = [];
   roundId++;
 
-  // Bốc thăm lượt đi đầu tiên.
   turn = Math.random() < 0.5 ? "X" : "O";
 
   startTurnTimer();
@@ -188,6 +184,8 @@ function finishRound(mark) {
 
   broadcast();
 }
+
+// ==================== TIMER LOOP ====================
 
 setInterval(() => {
   if (!turnDeadline || winner) return;
@@ -328,13 +326,7 @@ function registerViewer(socket, username) {
     return;
   }
 
-  // Tên đã được sử dụng bởi người đang đấu.
-  if (activePlayer && sameName(activePlayer, key)) {
-    socket.emit("notice", "Tên này đang được sử dụng.");
-    return;
-  }
-
-  // Đăng ký trực tiếp vào hàng chờ, không cần duyệt.
+  // Đăng ký trực tiếp vào hàng chờ.
   queue.push({
     username: clean,
     gift: "Đăng ký qua phòng QR",
@@ -505,8 +497,6 @@ app.post("/api/admin/add-player", authAdmin, (req, res) => {
   res.json({ ok: true });
 });
 
-// Giữ API cũ để không làm lỗi admin.js cũ.
-// Không còn chức năng duyệt người chơi.
 app.post("/api/admin/approve-player", authAdmin, (_req, res) => {
   res.status(410).json({
     error: "Đã bỏ bước phê duyệt. Người xem tự động vào hàng chờ."
@@ -519,6 +509,7 @@ app.post("/api/admin/reject-player", authAdmin, (_req, res) => {
   });
 });
 
+// Host chọn người chơi tiếp theo.
 app.post("/api/admin/select", authAdmin, (req, res) => {
   const username = cleanUsername(req.body.username);
 
@@ -539,11 +530,24 @@ app.post("/api/admin/select", authAdmin, (req, res) => {
   activePlayer = found.username;
   queue = queue.filter(p => p !== found);
 
+  // Đưa socket của người chơi được chọn vào phòng chat.
+  for (const client of io.sockets.sockets.values()) {
+    if (
+      client.data.username &&
+      sameName(client.data.username, activePlayer)
+    ) {
+      client.join("game-chat");
+      client.emit("chat:history", chatMessages);
+      client.emit("notice", "Bạn đã được chọn vào trận đấu!");
+    }
+  }
+
   startNewRound();
 
   res.json({ ok: true });
 });
 
+// Host đánh quân X.
 app.post("/api/admin/move", authAdmin, (req, res) => {
   const idx = Number(req.body.index);
 
@@ -617,8 +621,21 @@ app.post("/api/admin/rematch-confirm", authAdmin, (_req, res) => {
   res.json({ ok: true });
 });
 
+// Host chuyển sang người chơi tiếp theo.
 app.post("/api/admin/next", authAdmin, (_req, res) => {
+  // Đưa người chơi cũ ra khỏi phòng chat.
+  for (const client of io.sockets.sockets.values()) {
+    if (
+      client.data.username &&
+      activePlayer &&
+      sameName(client.data.username, activePlayer)
+    ) {
+      client.leave("game-chat");
+    }
+  }
+
   activePlayer = null;
+
   board = Array(225).fill(null);
   turn = "X";
   winner = null;
@@ -639,6 +656,7 @@ app.post("/api/admin/next", authAdmin, (_req, res) => {
   res.json({ ok: true });
 });
 
+// Reset điểm số.
 app.post("/api/admin/reset-score", authAdmin, (_req, res) => {
   scores = {
     host: 0,
@@ -662,7 +680,10 @@ io.on("connection", socket => {
       ADMIN_PIN === "CHANGE_ME" ||
       !safeCompare(pin, ADMIN_PIN)
     ) {
-      socket.emit("host:auth-failed", "Mã PIN quản trị không hợp lệ.");
+      socket.emit(
+        "host:auth-failed",
+        "Mã PIN quản trị không hợp lệ."
+      );
       return;
     }
 
@@ -673,6 +694,7 @@ io.on("connection", socket => {
     socket.emit("chat:history", chatMessages);
   });
 
+  // Người xem đăng ký vào phòng.
   socket.on("viewer:join", ({ username } = {}) => {
     registerViewer(socket, username);
   });
@@ -770,8 +792,14 @@ io.on("connection", socket => {
   });
 
   // Chat giữa Host và người đang đấu.
+  // Hỗ trợ cả chuỗi và object { message }.
   socket.on("chat:send", value => {
-    sendChat(socket, value);
+    const message =
+      typeof value === "object" && value !== null
+        ? value.message
+        : value;
+
+    sendChat(socket, message);
   });
 
   socket.on("disconnect", reason => {
