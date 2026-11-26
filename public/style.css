@@ -1227,3 +1227,324 @@ main.admin .join {
     transition-duration: .01ms !important;
   }
 }
+
+/* =========================================
+   CARO LIVE - GIAO DIỆN CHƠI ANDROID
+   Ưu tiên: ĐỒNG HỒ + BÀN CỜ + CHAT
+========================================= */
+
+@media (max-width: 650px) {
+
+  body {
+    padding: 4px;
+  }
+
+  .viewer-layout {
+    gap: 5px;
+    width: 100%;
+  }
+
+  /* Thu gọn hai người chơi */
+  .viewer-layout .arena-players {
+    order: 1;
+    grid-template-columns: minmax(0, 1fr) 18px minmax(0, 1fr);
+    gap: 4px;
+  }
+
+  .viewer-layout .player-card {
+    min-height: 52px;
+    padding: 3px 5px;
+    gap: 4px;
+    border-width: 1px;
+    border-radius: 9px;
+  }
+
+  .viewer-layout .avatar3d {
+    flex: 0 0 34px;
+    width: 34px;
+    height: 40px;
+    border-radius: 7px;
+  }
+
+  .viewer-layout .player-meta {
+    gap: 1px;
+  }
+
+  .viewer-layout .player-meta b {
+    font-size: 9px;
+  }
+
+  .viewer-layout .player-meta small {
+    font-size: 6px;
+  }
+
+  .viewer-layout .player-meta strong {
+    font-size: 14px;
+  }
+
+  .viewer-layout .player-card .stone-preview {
+    display: none;
+  }
+
+  .viewer-layout .versus {
+    font-size: 9px;
+  }
+
+  /* Trạng thái và âm thanh */
+  .viewer-layout .game-status {
+    order: 2;
+    gap: 4px;
+  }
+
+  .viewer-layout .status {
+    min-height: 32px;
+    padding: 4px 6px;
+    font-size: 10px;
+    border-radius: 8px;
+  }
+
+  .viewer-layout .icon-toggle {
+    width: 32px;
+    height: 32px;
+    font-size: 16px;
+    border-radius: 8px;
+  }
+
+  /* Khu vực chơi */
+  .viewer-layout .viewer-game-area {
+    order: 3;
+    width: 100%;
+    margin: 0;
+  }
+
+  .viewer-layout .board-column {
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 5px;
+    width: 100%;
+  }
+
+  /* Đồng hồ chuyển lên phía trên bàn cờ */
+  .viewer-layout .timer-section {
+    order: -1;
+    width: 100%;
+    max-width: none;
+    min-height: 48px;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto auto;
+    grid-template-rows: auto auto;
+    align-items: center;
+    justify-content: stretch;
+    gap: 0 10px;
+    margin: 0;
+    padding: 4px 10px;
+    border-width: 2px;
+    border-radius: 10px;
+  }
+
+  .viewer-layout .timer-heading {
+    grid-column: 1;
+    grid-row: 1;
+    justify-self: start;
+    font-size: 10px;
+    text-align: left;
+  }
+
+  .viewer-layout .hourglass-wrap {
+    display: none;
+  }
+
+  .viewer-layout .timer-number {
+    grid-column: 2;
+    grid-row: 1 / 3;
+    font-size: 35px;
+    line-height: 1;
+    min-width: 48px;
+    text-align: center;
+  }
+
+  .viewer-layout .timer-unit {
+    grid-column: 3;
+    grid-row: 1 / 3;
+    margin: 0;
+    font-size: 9px;
+    text-align: left;
+  }
+
+  .viewer-layout .timer-message {
+    grid-column: 1;
+    grid-row: 2;
+    justify-self: start;
+    margin-top: 2px;
+    font-size: 9px;
+    text-align: left;
+  }
+
+  /* Bàn cờ luôn nằm dưới đồng hồ */
+  .viewer-layout .board-panel {
+    order: 0;
+    width: 100%;
+    max-width: none;
+    margin: 0;
+    padding: 3px;
+    border-width: 2px;
+    border-radius: 9px;
+  }
+
+  .viewer-layout .board-heading {
+    margin: 0 0 3px;
+    font-size: 11px;
+    line-height: 16px;
+  }
+
+  .viewer-layout #board,
+  .viewer-layout .board {
+    width: 100% !important;
+    max-width: none !important;
+    aspect-ratio: 1 / 1 !important;
+    border-width: 1px;
+  }
+
+  .viewer-layout #board .cell .stone {
+    width: 80% !important;
+    height: 80% !important;
+  }
+
+  .viewer-layout .board-legend {
+    gap: 10px;
+    margin-top: 3px;
+    font-size: 9px;
+  }
+
+  /* Chat nằm ngay dưới bàn cờ */
+  .viewer-layout .chat-panel {
+    order: 4;
+    display: flex !important;
+    width: 100%;
+    max-width: none;
+    gap: 4px;
+    margin: 0;
+    padding: 6px;
+    border-width: 1px;
+    border-radius: 9px;
+  }
+
+  .viewer-layout .chat-heading {
+    min-height: 18px;
+    font-size: 10px;
+  }
+
+  .viewer-layout .chat-heading span {
+    font-size: 9px;
+  }
+
+  .viewer-layout .chat-messages {
+    height: 76px;
+    min-height: 76px;
+    padding: 5px;
+    gap: 3px;
+    border-radius: 7px;
+  }
+
+  .viewer-layout .chat-message {
+    padding: 4px 7px;
+    font-size: 11px;
+  }
+
+  .viewer-layout .chat-message b {
+    font-size: 9px;
+  }
+
+  .viewer-layout .chat-compose {
+    gap: 5px;
+  }
+
+  .viewer-layout .chat-compose input {
+    min-height: 36px;
+    padding: 6px 9px;
+    font-size: 16px;
+  }
+
+  .viewer-layout .chat-compose button {
+    min-width: 48px;
+    font-size: 11px;
+  }
+
+  .viewer-layout .chat-notice {
+    min-height: 10px;
+    font-size: 9px;
+  }
+
+  /* Tái đấu */
+  .viewer-layout .rematch-panel {
+    order: 2;
+    margin: 0;
+    padding: 7px;
+    gap: 5px;
+  }
+
+  .viewer-layout .rematch-panel button {
+    min-height: 36px;
+    font-size: 11px;
+  }
+
+  /* QR và đăng ký vẫn nằm phía dưới khu vực chơi */
+  .viewer-layout .viewer-qr {
+    order: 5;
+    max-width: 145px;
+    padding: 6px;
+  }
+
+  .viewer-layout .viewer-qr img {
+    width: 95px;
+    height: 95px;
+  }
+
+  .viewer-layout .viewer-join {
+    order: 6;
+    width: 100%;
+    margin: 0;
+    padding: 8px;
+  }
+
+  .viewer-layout .game-footer {
+    order: 7;
+    padding: 4px;
+    font-size: 9px;
+  }
+}
+
+/* Điện thoại nhỏ */
+@media (max-width: 390px) {
+  .viewer-layout {
+    gap: 4px;
+  }
+
+  .viewer-layout .arena-players {
+    gap: 3px;
+  }
+
+  .viewer-layout .avatar3d {
+    flex-basis: 29px;
+    width: 29px;
+    height: 35px;
+  }
+
+  .viewer-layout .player-meta b {
+    font-size: 8px;
+  }
+
+  .viewer-layout .player-meta small {
+    font-size: 6px;
+  }
+
+  .viewer-layout .timer-number {
+    font-size: 31px;
+  }
+
+  .viewer-layout .chat-messages {
+    height: 68px;
+    min-height: 68px;
+  }
+}
