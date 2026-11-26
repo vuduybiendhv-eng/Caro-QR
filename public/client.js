@@ -7,7 +7,7 @@
    - Chat và đấu lại
    - Đồng bộ trạng thái
    - Âm thanh, hiệu ứng
-   - Emoji bay nổi trên bàn cờ
+   - 7 emoji bay nổi trên bàn cờ
 ========================================================= */
 
 (() => {
@@ -557,14 +557,14 @@
   });
 
   // ========================================================
-  // EMOJI BAY NỔI
+  // EMOJI BAY NỔI - CHỈ 7 EMOJI
   // ========================================================
 
   const reactionList = [
-    "❤️", "😂", "😍", "🔥", "👏",
-    "👍", "😮", "😭", "🤣", "🎉",
-    "💪", "🥰", "💖", "⭐", "😎"
+    "😂", "👍", "❤️", "😱", "👏", "❌", "👋"
   ];
+
+  let reactionButtons = [];
 
   function installReactionAnimation() {
     if ($("caroReactionStyle")) return;
@@ -594,6 +594,21 @@
         }
       }
 
+      .caro-reaction-stage {
+        position: relative;
+        display: block;
+        width: 100%;
+        max-width: 100%;
+      }
+
+      #reactionOverlay {
+        position: absolute;
+        inset: 0;
+        overflow: hidden;
+        pointer-events: none;
+        z-index: 50;
+      }
+
       #reactionToolbar {
         display: flex;
         flex-wrap: wrap;
@@ -616,38 +631,46 @@
         opacity: .4;
         cursor: not-allowed;
       }
-
-      #reactionOverlay {
-        position: absolute;
-        inset: 0;
-        overflow: hidden;
-        pointer-events: none;
-        z-index: 50;
-      }
     `;
 
     document.head.appendChild(style);
   }
 
+  function updateReactionControls() {
+    const canReact = Boolean(
+      registered &&
+      username &&
+      isActiveViewer() &&
+      !state?.winner &&
+      socket.connected
+    );
+
+    reactionButtons.forEach(button => {
+      button.disabled = !canReact;
+    });
+  }
+
   function setupReactions() {
     if (!boardEl || $("reactionToolbar")) return;
 
-    boardEl.style.position = "relative";
-    boardEl.style.overflow = "hidden";
+    const boardContainer = boardEl.parentElement;
+    if (!boardContainer) return;
+
+    // Tạo lớp riêng quanh bàn cờ.
+    // Không thêm phần tử vào bên trong lưới 225 ô.
+    const stage = document.createElement("div");
+    stage.className = "caro-reaction-stage";
+    stage.id = "caroReactionStage";
+
+    boardContainer.insertBefore(stage, boardEl);
+    stage.appendChild(boardEl);
 
     const overlay = document.createElement("div");
     overlay.id = "reactionOverlay";
     overlay.setAttribute("aria-hidden", "true");
+    stage.appendChild(overlay);
 
-    // Lớp hiệu ứng không nằm trong lưới 225 ô.
-    const boardContainer = boardEl.parentElement;
-
-    if (!boardContainer) return;
-
-    boardContainer.style.position = "relative";
-
-    boardContainer.appendChild(overlay);
-
+    // Thanh emoji nằm bên dưới bàn cờ.
     const toolbar = document.createElement("div");
     toolbar.id = "reactionToolbar";
 
@@ -676,10 +699,12 @@
         });
       });
 
+      reactionButtons.push(button);
       toolbar.appendChild(button);
     });
 
     boardContainer.appendChild(toolbar);
+    updateReactionControls();
   }
 
   function showFloatingReaction(data) {
@@ -689,7 +714,9 @@
       !overlay ||
       !data ||
       !reactionList.includes(data.emoji)
-    ) return;
+    ) {
+      return;
+    }
 
     const item = document.createElement("span");
     item.textContent = data.emoji;
@@ -751,6 +778,7 @@
     renderInfo(s);
     renderBoard(s);
     renderRematch(s);
+    updateReactionControls();
   }
 
   // ========================================================
@@ -767,6 +795,7 @@
     }
 
     showNotice("Đã kết nối phòng Caro LIVE.");
+    updateReactionControls();
   });
 
   socket.on("state", render);
@@ -818,6 +847,8 @@
 
   socket.on("disconnect", reason => {
     pendingMove = false;
+
+    updateReactionControls();
 
     console.warn("Mất kết nối:", reason);
 
