@@ -26,6 +26,15 @@ const BASE_URL = (process.env.PUBLIC_BASE_URL || "").replace(/\/$/, "");
 const TURN_TIME = 30;
 const CHAT_LIMIT = 50;
 
+// Emoji được phép sử dụng.
+const REACTION_EMOJIS = new Set([
+  "❤️", "😂", "😍", "🔥", "👏",
+  "👍", "😮", "😭", "🤣", "🎉",
+  "💪", "🥰", "💖", "⭐", "😎"
+]);
+
+const REACTION_COOLDOWN = 500;
+
 app.set("trust proxy", process.env.TRUST_PROXY === "true");
 app.use(helmet({ contentSecurityPolicy: false }));
 app.use(express.json({ limit: "32kb" }));
@@ -56,6 +65,9 @@ let roundId = 0;
 
 let chatMessages = [];
 const chatLastSent = new Map();
+
+// Giới hạn tốc độ gửi emoji theo socket.
+const reactionLastSent = new Map();
 
 // ==================== TIMER ====================
 
@@ -410,6 +422,48 @@ function sendChat(socket, value) {
   }
 
   io.to("game-chat").emit("chat:message", item);
+}
+
+// ==================== EMOJI REACTIONS ====================
+
+function sendReaction(socket, data = {}) {
+  const isHost = socket.data.isHost === true;
+  const isViewer = viewerIsActive(socket);
+
+  // Chỉ HOST đã xác thực hoặc VIEWER đang đấu được gửi.
+  if (!isHost && !isViewer) return;
+
+  // Không gửi emoji khi chưa có trận hoặc ván đã kết thúc.
+  if (!activePlayer || winner) return;
+
+  const emoji = String(data.emoji || "");
+
+  if (!REACTION_EMOJIS.has(emoji)) return;
+
+  const now = Date.now();
+  const lastSent = reactionLastSent.get(socket.id) || 0;
+
+  if (now - lastSent < REACTION_COOLDOWN) return;
+
+  reactionLastSent.set(socket.id, now);
+
+  const rawX = Number(data.x);
+  const rawY = Number(data.y);
+
+  const x = Number.isFinite(rawX)
+    ? Math.max(10, Math.min(90, rawX))
+    : 50;
+
+  const y = Number.isFinite(rawY)
+    ? Math.max(10, Math.min(90, rawY))
+    : 50;
+
+  // Chỉ phát tới HOST và VIEWER trong phòng trận đấu.
+  io.to("game-chat").emit("reaction:show", {
+    emoji,
+    x,
+    y
+  });
 }
 
 // ==================== API ====================
@@ -802,8 +856,14 @@ io.on("connection", socket => {
     sendChat(socket, message);
   });
 
+  // Emoji bay trên bàn cờ, không đi vào chat.
+  socket.on("reaction:send", data => {
+    sendReaction(socket, data);
+  });
+
   socket.on("disconnect", reason => {
     chatLastSent.delete(socket.id);
+    reactionLastSent.delete(socket.id);
 
     console.log(
       "Socket disconnected:",
