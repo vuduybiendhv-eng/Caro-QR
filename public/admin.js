@@ -1,9 +1,17 @@
 
 /* =========================================================
    CARO LIVE - ADMIN.JS
-   HOST: Bàn cờ, hàng chờ, chat hai chiều, đồng hồ,
-   tái đấu, điểm số và âm thanh.
-   ========================================================= */
+   HOST CONTROL PANEL
+   - Đăng nhập Admin PIN
+   - Bàn cờ 15x15
+   - Hàng chờ tự động
+   - Chat HOST <-> VIEWER
+   - Đồng hồ đếm ngược
+   - Đấu lại
+   - Kết thúc ván
+   - Reset điểm
+   - Âm thanh và hiệu ứng
+========================================================= */
 
 (() => {
   "use strict";
@@ -29,7 +37,6 @@
   let hostAuthenticated = false;
   let cells = [];
   let chatMessages = [];
-  let lastWinner = null;
 
   // ========================================================
   // TIỆN ÍCH
@@ -46,6 +53,10 @@
 
   function showMessage(message) {
     setText("status", message);
+  }
+
+  function escapeName(value) {
+    return String(value || "").replace(/^@/, "");
   }
 
   // ========================================================
@@ -104,22 +115,26 @@
     if (!pin || !socket.connected) {
       hostAuthenticated = false;
       renderChat();
+      updateFixedButtons();
       return;
     }
 
     hostAuthenticated = false;
     socket.emit("host:authenticate", { pin });
+
     renderChat();
+    updateFixedButtons();
   }
 
   socket.on("host:authenticated", () => {
     hostAuthenticated = true;
+
     renderChat();
+    updateFixedButtons();
 
     console.log("Host đã xác thực thành công.");
   });
 
-  // Đúng tên sự kiện trong server.js.
   socket.on("host:auth-failed", message => {
     hostAuthenticated = false;
 
@@ -129,18 +144,23 @@
     );
 
     renderChat();
+    updateFixedButtons();
   });
 
   socket.on("connect", () => {
     console.log("Host đã kết nối máy chủ.");
+
     hostAuthenticated = false;
     authenticateHost();
   });
 
   socket.on("disconnect", () => {
     hostAuthenticated = false;
+
     showMessage("Mất kết nối. Đang kết nối lại...");
+
     renderChat();
+    updateFixedButtons();
   });
 
   socket.on("connect_error", error => {
@@ -200,7 +220,7 @@
   }
 
   // ========================================================
-  // BÀN CỜ
+  // BÀN CỜ 15 X 15
   // ========================================================
 
   function createBoard() {
@@ -339,9 +359,11 @@
   // ========================================================
 
   function getPlayerName(player) {
-    if (typeof player === "string") return player;
+    if (typeof player === "string") {
+      return escapeName(player);
+    }
 
-    return String(
+    return escapeName(
       player?.username ||
       player?.name ||
       ""
@@ -354,7 +376,11 @@
 
     container.replaceChildren();
 
-    const players = Array.isArray(s.queue) ? s.queue : [];
+    const players = Array.isArray(s.queue)
+      ? s.queue
+      : [];
+
+    setText("queueCount", players.length);
 
     if (!players.length) {
       container.textContent =
@@ -367,17 +393,22 @@
       if (!username) return;
 
       const row = document.createElement("div");
-      row.className = "queueitem";
+      row.className = "queue-item";
 
       const label = document.createElement("span");
       label.textContent = "@" + username;
 
       const button = document.createElement("button");
       button.type = "button";
-      button.textContent = "Chọn đấu";
+      button.textContent = "▶ CHỌN ĐẤU";
       button.disabled = Boolean(s.activePlayer);
 
       button.addEventListener("click", async () => {
+        if (!hostAuthenticated) {
+          alert("Vui lòng đăng nhập Admin PIN.");
+          return;
+        }
+
         if (state?.activePlayer) {
           alert("Đang có người chơi trong trận.");
           return;
@@ -403,24 +434,31 @@
   }
 
   // ========================================================
-  // THÔNG TIN VÀ ĐIỂM SỐ
+  // THÔNG TIN NGƯỜI CHƠI VÀ ĐIỂM SỐ
   // ========================================================
 
   function renderInfo(s) {
     if (s.winner === "X") {
       showMessage("🏆 Chủ LIVE chiến thắng!");
+
     } else if (s.winner === "O") {
       showMessage(
         `🏆 @${s.activePlayer || "Người chơi"} chiến thắng!`
       );
+
     } else if (s.winner === "D") {
       showMessage("🤝 Ván đấu hòa!");
+
     } else if (!s.activePlayer) {
       showMessage("Đang chờ chủ LIVE chọn người chơi.");
+
     } else if (s.turn === "X") {
       showMessage("Đến lượt chủ LIVE đánh quân X.");
+
     } else {
-      showMessage(`Đến lượt @${s.activePlayer} đánh quân O.`);
+      showMessage(
+        `Đến lượt @${s.activePlayer} đánh quân O.`
+      );
     }
 
     setText("hostScore", s.scores?.host ?? 0);
@@ -428,10 +466,12 @@
 
     setText(
       "opponent",
-      s.activePlayer ? "@" + s.activePlayer : "Chưa chọn"
+      s.activePlayer
+        ? "@" + s.activePlayer
+        : "Chưa chọn"
     );
 
-    setText("host", s.host || "CHỦ LIVE");
+    setText("host", s.host || "@mbbb1118");
   }
 
   // ========================================================
@@ -481,15 +521,17 @@
                 ? "Chủ LIVE chiến thắng!"
                 : "Người chơi chiến thắng!";
         }
+
       } else {
         if (owner) {
-          owner.textContent = "⏳ ĐANG CHỜ LƯỢT CHƠI";
+          owner.textContent = "⏳ ĐANG CHỜ LƯỢT";
         }
 
         number.textContent = String(s.turnTime || 30);
 
         if (message) {
-          message.textContent = "Chờ bắt đầu trận đấu";
+          message.textContent =
+            "Đang chờ chủ LIVE chọn người chơi.";
         }
       }
 
@@ -532,7 +574,7 @@
   }
 
   // ========================================================
-  // TÁI ĐẤU
+  // TÁI ĐẤU - KHUNG THÔNG BÁO
   // ========================================================
 
   function renderRematch(s) {
@@ -543,6 +585,7 @@
 
     if (!s.winner || s.winner === "D" || !s.activePlayer) {
       panel.hidden = true;
+      updateFixedButtons();
       return;
     }
 
@@ -550,49 +593,68 @@
 
     const title = document.createElement("strong");
     const description = document.createElement("p");
-    const button = document.createElement("button");
 
-    button.type = "button";
+    panel.append(title, description);
 
     if (s.rematchRequest === "viewer") {
       title.textContent = "Người xem muốn đấu lại!";
       description.textContent =
         `@${s.activePlayer} đang chờ chủ LIVE xác nhận.`;
 
-      button.textContent = "✓ Đồng ý đấu lại";
-
-      button.addEventListener("click", async () => {
-        if (!confirm("Bắt đầu ván đấu lại?")) return;
-
-        await post("/api/admin/rematch-confirm");
-      });
-
-      panel.append(title, description, button);
-      return;
-    }
-
-    if (s.rematchRequest === "host") {
+    } else if (s.rematchRequest === "host") {
       title.textContent = "Đã gửi yêu cầu đấu lại!";
       description.textContent =
         `Đang chờ @${s.activePlayer} xác nhận.`;
 
-      panel.append(title, description);
-      return;
+    } else {
+      title.textContent = "Ván đấu đã kết thúc!";
+      description.textContent =
+        `Bạn có thể mời @${s.activePlayer} đấu lại.`;
     }
 
-    title.textContent = "Ván đấu đã kết thúc!";
-    description.textContent =
-      `Bạn có muốn đấu thêm với @${s.activePlayer}?`;
+    updateFixedButtons();
+  }
 
-    button.textContent = "↻ Yêu cầu đấu lại";
+  // ========================================================
+  // NÚT ĐIỀU KHIỂN CỐ ĐỊNH
+  // ========================================================
 
-    button.addEventListener("click", async () => {
-      if (!confirm("Gửi lời mời đấu lại?")) return;
+  function updateFixedButtons() {
+    const rematchButton = $("rematchConfirm");
+    const endButton = $("endMatch");
+    const nextButton = $("next");
 
-      await post("/api/admin/rematch-request");
-    });
+    const hasPlayer = Boolean(state?.activePlayer);
+    const hasWinner = Boolean(state?.winner);
+    const canControl = hostAuthenticated;
 
-    panel.append(title, description, button);
+    if (rematchButton) {
+      rematchButton.disabled = !(
+        canControl &&
+        hasPlayer &&
+        hasWinner &&
+        state.winner !== "D" &&
+        state.rematchRequest !== "host"
+      );
+
+      if (state?.rematchRequest === "viewer") {
+        rematchButton.textContent = "✓ ĐỒNG Ý ĐẤU LẠI";
+      } else if (state?.rematchRequest === "host") {
+        rematchButton.textContent = "⌛ ĐANG CHỜ XÁC NHẬN";
+      } else {
+        rematchButton.textContent = "🔄 ĐẤU LẠI";
+      }
+    }
+
+    if (endButton) {
+      endButton.disabled = !(
+        canControl && hasPlayer
+      );
+    }
+
+    if (nextButton) {
+      nextButton.disabled = !canControl;
+    }
   }
 
   // ========================================================
@@ -614,6 +676,7 @@
       empty.className = "chat-empty";
       empty.textContent = "Chưa có tin nhắn.";
       container.appendChild(empty);
+
     } else {
       chatMessages.forEach(message => {
         appendChatMessage(message, false);
@@ -622,8 +685,6 @@
 
     container.scrollTop = container.scrollHeight;
 
-    // Server cho phép host chat khi có đối thủ đang được chọn,
-    // kể cả sau khi ván đấu kết thúc.
     const canChat = Boolean(
       hostAuthenticated &&
       state?.activePlayer
@@ -652,17 +713,16 @@
 
     const isHost = message?.sender === "host";
 
-    row.className = "chat-message " +
-      (isHost ? "host-message" : "viewer-message");
+    row.className =
+      "chat-message " + (isHost ? "host" : "viewer");
 
-    const name = document.createElement("strong");
+    const name = document.createElement("b");
+
     name.textContent = isHost
       ? "CHỦ LIVE"
       : "@" + String(message?.username || "Người chơi");
 
     const content = document.createElement("div");
-
-    // Server sử dụng thuộc tính message.
     content.textContent = String(message?.message || "");
 
     row.append(name, content);
@@ -689,7 +749,11 @@
       return;
     }
 
-    // Gửi object để thống nhất với client.js phía người xem.
+    if (!socket.connected) {
+      setText("chatNotice", "Mất kết nối máy chủ.");
+      return;
+    }
+
     socket.emit("chat:send", {
       message: text
     });
@@ -720,7 +784,6 @@
   socket.on("chat:message", message => {
     if (!message) return;
 
-    // Hạn chế hiển thị trùng nếu server gửi lại lịch sử.
     if (
       message.id &&
       chatMessages.some(item => item.id === message.id)
@@ -760,7 +823,8 @@
     state = s;
 
     if (Number.isFinite(Number(s.serverTime))) {
-      serverClockOffset = Number(s.serverTime) - Date.now();
+      serverClockOffset =
+        Number(s.serverTime) - Date.now();
     }
 
     renderInfo(s);
@@ -769,18 +833,52 @@
     renderTimer();
     renderRematch(s);
     renderChat();
-
-    lastWinner = s.winner;
+    updateFixedButtons();
   }
 
   socket.on("state", render);
 
   // ========================================================
-  // NÚT CHUYỂN NGƯỜI CHƠI
+  // CHỌN ĐẤU / VÁN MỚI
+  // API /api/admin/next
   // ========================================================
 
-  $("next")?.addEventListener("click", async () => {
-    if (!confirm("Kết thúc ván và chuyển sang hàng chờ?")) {
+  async function nextMatch() {
+    if (!hostAuthenticated) {
+      alert("Vui lòng đăng nhập Admin PIN.");
+      return;
+    }
+
+    if (!state?.activePlayer) {
+      alert("Hiện chưa có người chơi đang đấu.");
+      return;
+    }
+
+    if (!confirm("Kết thúc ván hiện tại và chuyển sang người tiếp theo?")) {
+      return;
+    }
+
+    await post("/api/admin/next");
+  }
+
+  $("next")?.addEventListener("click", nextMatch);
+
+  // ========================================================
+  // KẾT THÚC VÁN
+  // ========================================================
+
+  $("endMatch")?.addEventListener("click", async () => {
+    if (!hostAuthenticated) {
+      alert("Vui lòng đăng nhập Admin PIN.");
+      return;
+    }
+
+    if (!state?.activePlayer) {
+      alert("Hiện không có trận đấu đang diễn ra.");
+      return;
+    }
+
+    if (!confirm("Kết thúc ván và chuyển người chơi tiếp theo?")) {
       return;
     }
 
@@ -788,11 +886,61 @@
   });
 
   // ========================================================
+  // ĐẤU LẠI
+  // ========================================================
+
+  async function handleRematch() {
+    if (!hostAuthenticated) {
+      alert("Vui lòng đăng nhập Admin PIN.");
+      return;
+    }
+
+    if (!state?.activePlayer || !state?.winner) {
+      alert("Chưa có ván đấu kết thúc để đấu lại.");
+      return;
+    }
+
+    if (state.winner === "D") {
+      alert("Ván hòa không hỗ trợ yêu cầu đấu lại theo luồng hiện tại.");
+      return;
+    }
+
+    if (state.rematchRequest === "host") {
+      alert("Đang chờ người chơi xác nhận.");
+      return;
+    }
+
+    if (state.rematchRequest === "viewer") {
+      if (!confirm("Người chơi đã yêu cầu đấu lại. Đồng ý?")) {
+        return;
+      }
+
+      await post("/api/admin/rematch-confirm");
+      return;
+    }
+
+    if (!confirm(`Mời @${state.activePlayer} đấu lại?`)) {
+      return;
+    }
+
+    await post("/api/admin/rematch-request");
+  }
+
+  $("rematchConfirm")?.addEventListener("click", handleRematch);
+
+  // ========================================================
   // RESET ĐIỂM
   // ========================================================
 
   $("reset")?.addEventListener("click", async () => {
-    if (!confirm("Bạn muốn xóa toàn bộ điểm số?")) return;
+    if (!hostAuthenticated) {
+      alert("Vui lòng đăng nhập Admin PIN.");
+      return;
+    }
+
+    if (!confirm("Bạn muốn xóa toàn bộ điểm số?")) {
+      return;
+    }
 
     const result = await post("/api/admin/reset-score");
 
@@ -806,6 +954,11 @@
   // ========================================================
 
   $("addPlayer")?.addEventListener("click", async () => {
+    if (!hostAuthenticated) {
+      alert("Vui lòng đăng nhập Admin PIN.");
+      return;
+    }
+
     const input = $("giftUser");
     const username = String(input?.value || "").trim();
 
@@ -825,9 +978,16 @@
     }
   });
 
+  $("giftUser")?.addEventListener("keydown", event => {
+    if (event.key === "Enter") {
+      event.preventDefault();
+      $("addPlayer")?.click();
+    }
+  });
+
   // ========================================================
-  // NÚT ÂM THANH
-  // sound.js tự quản lý click.
+  // ÂM THANH
+  // sound.js tự quản lý click
   // ========================================================
 
   function updateSoundButton() {
@@ -841,6 +1001,10 @@
     button.setAttribute("aria-label", button.title);
     button.setAttribute("aria-pressed", String(enabled));
   }
+
+  $("soundToggle")?.addEventListener("click", () => {
+    setTimeout(updateSoundButton, 50);
+  });
 
   // ========================================================
   // CẬP NHẬT ĐỒNG HỒ
@@ -857,8 +1021,11 @@
   createBoard();
   renderChat();
   updateSoundButton();
+  updateFixedButtons();
 
-  fetch("/api/state", { cache: "no-store" })
+  fetch("/api/state", {
+    cache: "no-store"
+  })
     .then(response => {
       if (!response.ok) {
         throw new Error("Không tải được trạng thái.");
