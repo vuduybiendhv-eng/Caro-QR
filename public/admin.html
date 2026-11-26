@@ -1,239 +1,218 @@
+<!doctype html>  <html lang="vi">  
+<head>  
+  <meta charset="utf-8">  
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">  
+  <meta name="theme-color" content="#21150e">  
+  <title>CARO LIVE - Chủ phòng</title>  
+  <link rel="stylesheet" href="/style.css?v=10">  
+</head>  <body class="admin-page">  
+  <canvas id="celebrationCanvas" aria-hidden="true"></canvas>  
+  <div id="victoryBanner" class="victory-banner" aria-live="polite"></div>    <main class="wrap admin caro-layout">  <header class="admin-header">  
+  <div class="eyebrow">HOST CONTROL PANEL</div>  
+  <h1>CARO LIVE</h1>  
+  <p>Điều khiển phòng · TikTok LIVE</p>  
+</header>  
 
-<!doctype html>
-<html lang="vi">
-<head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-  <meta name="theme-color" content="#21150e">
-  <title>CARO LIVE - Chủ phòng</title>
-  <link rel="stylesheet" href="/style.css?v=10">
-</head>
+<!-- XÁC THỰC QUẢN TRỊ -->  
+<section class="join admin-login">  
+  <label for="pin">Mã quản trị</label>  
+  <input  
+    id="pin"  
+    type="password"  
+    placeholder="Nhập mã quản trị"  
+    autocomplete="current-password"  
+  >  
+  <p>Không chia sẻ mã quản trị với người xem.</p>  
+</section>  
 
-<body class="admin-page">
-  <canvas id="celebrationCanvas" aria-hidden="true"></canvas>
-  <div id="victoryBanner" class="victory-banner" aria-live="polite"></div>
+<!-- THÔNG TIN NGƯỜI CHƠI -->  
+<section class="arena-players">  
+  <article class="player-card host-card">  
+    <div class="player-avatar host-avatar">X</div>  
+    <div class="player-info">  
+      <strong id="host">CHỦ LIVE</strong>  
+      <span>QUÂN X · CHỦ PHÒNG</span>  
+      <div class="player-score" id="hostScore">0</div>  
+    </div>  
+  </article>  
 
-  <main class="wrap admin caro-layout">
+  <div class="versus">VS</div>  
 
-    <header class="admin-header">
-      <div class="eyebrow">HOST CONTROL PANEL</div>
-      <h1>CARO LIVE</h1>
-      <p>Điều khiển phòng · TikTok LIVE</p>
-    </header>
+  <article class="player-card viewer-card">  
+    <div class="player-avatar viewer-avatar">O</div>  
+    <div class="player-info">  
+      <strong id="opponent">Đang chờ người chơi</strong>  
+      <span>QUÂN O · NGƯỜI CHƠI</span>  
+      <div class="player-score" id="viewerScore">0</div>  
+    </div>  
+  </article>  
+</section>  
 
-    <!-- XÁC THỰC QUẢN TRỊ -->
-    <section class="join admin-login">
-      <label for="pin">Mã quản trị</label>
-      <input
-        id="pin"
-        type="password"
-        placeholder="Nhập mã quản trị"
-        autocomplete="current-password"
-      >
-      <p>Không chia sẻ mã quản trị với người xem.</p>
-    </section>
+<!-- HÀNG CHỜ -->  
+<section class="admin-section">  
+  <div class="section-heading">  
+    <h2>🎮 HÀNG CHỜ NGƯỜI CHƠI</h2>  
+    <span class="section-caption">Tự động cập nhật</span>  
+  </div>  
+  <div id="queue" class="queue">  
+    Đang tải hàng chờ...  
+  </div>  
+</section>  
 
-    <!-- THÔNG TIN NGƯỜI CHƠI -->
-    <section class="arena-players">
-      <article class="player-card host-card">
-        <div class="player-avatar host-avatar">X</div>
-        <div class="player-info">
-          <strong id="host">CHỦ LIVE</strong>
-          <span>QUÂN X · CHỦ PHÒNG</span>
-          <div class="player-score" id="hostScore">0</div>
-        </div>
-      </article>
+<!-- THÊM NGƯỜI CHƠI THỦ CÔNG -->  
+<details class="join manual-entry">  
+  <summary>Thêm người chơi thủ công</summary>  
+  <p>Dùng khi cần xác nhận quà hoặc thêm người chơi dự phòng.</p>  
+  <div class="joinrow">  
+    <input id="giftUser" placeholder="Tên TikTok người chơi">  
+    <button id="addPlayer" type="button">Thêm</button>  
+  </div>  
+</details>  
 
-      <div class="versus">VS</div>
+<!-- NÚT ÂM THANH -->  
+<section class="soundbar icon-soundbar">  
+  <button  
+    id="soundToggle"  
+    type="button"  
+    aria-label="Bật hoặc tắt âm thanh"  
+    title="Âm thanh"  
+  >🔊</button>  
 
-      <article class="player-card viewer-card">
-        <div class="player-avatar viewer-avatar">O</div>
-        <div class="player-info">
-          <strong id="opponent">Đang chờ người chơi</strong>
-          <span>QUÂN O · NGƯỜI CHƠI</span>
-          <div class="player-score" id="viewerScore">0</div>
-        </div>
-      </article>
-    </section>
+  <button  
+    id="musicToggle"  
+    type="button"  
+    aria-label="Bật hoặc tắt nhạc nền"  
+    title="Nhạc nền"  
+  >🎵</button>  
+</section>  
 
-    <!-- HÀNG CHỜ -->
-    <section class="admin-section">
-      <div class="section-heading">
-        <h2>🎮 HÀNG CHỜ NGƯỜI CHƠI</h2>
-        <span class="section-caption">Tự động cập nhật</span>
-      </div>
-      <div id="queue" class="queue">
-        Đang tải hàng chờ...
-      </div>
-    </section>
+<!-- TRẠNG THÁI -->  
+<section class="game-status admin-game-status">  
+  <p id="status" aria-live="polite">Đang chờ người chơi</p>  
+</section>  
 
-    <!-- THÊM NGƯỜI CHƠI THỦ CÔNG -->
-    <details class="join manual-entry">
-      <summary>Thêm người chơi thủ công</summary>
-      <p>Dùng khi cần xác nhận quà hoặc thêm người chơi dự phòng.</p>
-      <div class="joinrow">
-        <input id="giftUser" placeholder="Tên TikTok người chơi">
-        <button id="addPlayer" type="button">Thêm</button>
-      </div>
-    </details>
+<!-- ĐỒNG HỒ CÁT -->  
+<section class="timer-section timer-idle" id="timerPanel">  
+  <div class="timer-heading" id="timerOwner">  
+    ĐANG CHỜ LƯỢT CHƠI  
+  </div>  
 
-    <!-- NÚT ÂM THANH -->
-    <section class="soundbar icon-soundbar">
-      <button
-        id="soundToggle"
-        type="button"
-        aria-label="Bật hoặc tắt âm thanh"
-        title="Âm thanh"
-      >🔊</button>
+  <div class="hourglass-wrap">  
+    <svg class="hourglass" id="hourglass" viewBox="0 0 120 180">  
+      <defs>  
+        <linearGradient id="glassGradient" x1="0" y1="0" x2="1" y2="1">  
+          <stop offset="0%" stop-color="#fff8dc"/>  
+          <stop offset="100%" stop-color="#d8b978"/>  
+        </linearGradient>  
 
-      <button
-        id="musicToggle"
-        type="button"
-        aria-label="Bật hoặc tắt nhạc nền"
-        title="Nhạc nền"
-      >🎵</button>
-    </section>
+        <clipPath id="topSandClip">  
+          <path d="M30 20 H90 C90 55 78 68 60 88 C42 68 30 55 30 20Z"/>  
+        </clipPath>  
 
-    <!-- TRẠNG THÁI -->
-    <section class="game-status admin-game-status">
-      <p id="status" aria-live="polite">Đang chờ người chơi</p>
-    </section>
+        <clipPath id="bottomSandClip">  
+          <path d="M60 92 C78 112 90 125 90 160 H30 C30 125 42 112 60 92Z"/>  
+        </clipPath>  
+      </defs>  
 
-    <!-- ĐỒNG HỒ CÁT -->
-    <section class="timer-section timer-idle" id="timerPanel">
-      <div class="timer-heading" id="timerOwner">
-        ĐANG CHỜ LƯỢT CHƠI
-      </div>
+      <path  
+        class="glass-outline"  
+        d="M25 12 H95 M25 168 H95  
+           M30 20 C30 55 42 68 60 90  
+           C78 112 90 125 90 160  
+           M90 20 C90 55 78 68 60 90  
+           C42 112 30 125 30 160"  
+        fill="none"  
+        stroke="url(#glassGradient)"  
+        stroke-width="5"  
+        stroke-linecap="round"  
+      />  
 
-      <div class="hourglass-wrap">
-        <svg class="hourglass" id="hourglass" viewBox="0 0 120 180">
-          <defs>
-            <linearGradient id="glassGradient" x1="0" y1="0" x2="1" y2="1">
-              <stop offset="0%" stop-color="#fff8dc"/>
-              <stop offset="100%" stop-color="#d8b978"/>
-            </linearGradient>
+      <g clip-path="url(#topSandClip)">  
+        <path id="topSand" class="sand-top" d="M30 25 H90 V88 H30Z"/>  
+      </g>  
 
-            <clipPath id="topSandClip">
-              <path d="M30 20 H90 C90 55 78 68 60 88 C42 68 30 55 30 20Z"/>
-            </clipPath>
+      <g clip-path="url(#bottomSandClip)">  
+        <path id="bottomSand" class="sand-bottom" d="M30 160 H90 V160 H30Z"/>  
+      </g>  
 
-            <clipPath id="bottomSandClip">
-              <path d="M60 92 C78 112 90 125 90 160 H30 C30 125 42 112 60 92Z"/>
-            </clipPath>
-          </defs>
+      <path  
+        id="sandStream"  
+        class="sand-stream"  
+        d="M60 80 L60 105"  
+        fill="none"  
+        stroke-width="3"  
+      />  
+    </svg>  
+  </div>  
 
-          <path
-            class="glass-outline"
-            d="M25 12 H95 M25 168 H95
-               M30 20 C30 55 42 68 60 90
-               C78 112 90 125 90 160
-               M90 20 C90 55 78 68 60 90
-               C42 112 30 125 30 160"
-            fill="none"
-            stroke="url(#glassGradient)"
-            stroke-width="5"
-            stroke-linecap="round"
-          />
+  <div class="timer-number" id="timerNumber">30</div>  
+  <div class="timer-unit">GIÂY CÒN LẠI</div>  
+  <div class="timer-message" id="timerMessage">  
+    Chờ bắt đầu trận đấu  
+  </div>  
+</section>  
 
-          <g clip-path="url(#topSandClip)">
-            <path id="topSand" class="sand-top" d="M30 25 H90 V88 H30Z"/>
-          </g>
+<!-- BÀN CỜ -->  
+<section class="admin-board-section">  
+  <div class="board-heading">  
+    <h2>BÀN CỜ CARO 15×15</h2>  
+    <span>CHỦ LIVE X · NGƯỜI CHƠI O</span>  
+  </div>  
 
-          <g clip-path="url(#bottomSandClip)">
-            <path id="bottomSand" class="sand-bottom" d="M30 160 H90 V160 H30Z"/>
-          </g>
+  <div class="board-column">  
+    <div class="board" id="board"></div>  
+  </div>  
+</section>  
 
-          <path
-            id="sandStream"
-            class="sand-stream"
-            d="M60 80 L60 105"
-            fill="none"
-            stroke-width="3"
-          />
-        </svg>
-      </div>
+<!-- CHAT -->  
+<section class="chat-panel" id="chatPanel">  
+  <div class="chat-heading">  
+    <h2>💬 TIN NHẮN</h2>  
+    <span>Chủ LIVE ↔ Người chơi</span>  
+  </div>  
 
-      <div class="timer-number" id="timerNumber">30</div>
-      <div class="timer-unit">GIÂY CÒN LẠI</div>
-      <div class="timer-message" id="timerMessage">
-        Chờ bắt đầu trận đấu
-      </div>
-    </section>
+  <div  
+    id="chatMessages"  
+    class="chat-messages"  
+    aria-live="polite"  
+    aria-label="Tin nhắn trong trận đấu"  
+  >  
+    <div id="chatEmpty" class="chat-empty">  
+      Chưa có tin nhắn  
+    </div>  
+  </div>  
 
-    <!-- BÀN CỜ -->
-    <section class="admin-board-section">
-      <div class="board-heading">
-        <h2>BÀN CỜ CARO 15×15</h2>
-        <span>CHỦ LIVE X · NGƯỜI CHƠI O</span>
-      </div>
+  <div class="chat-compose">  
+    <input  
+      id="chatInput"  
+      type="text"  
+      maxlength="300"  
+      placeholder="Nhập tin nhắn..."  
+      autocomplete="off"  
+    >  
+    <button id="chatSend" type="button" aria-label="Gửi tin nhắn">  
+      GỬI  
+    </button>  
+  </div>  
 
-      <div class="board-column">
-        <div class="board" id="board"></div>
-      </div>
-    </section>
+  <p id="chatNotice" class="chat-notice" aria-live="polite"></p>  
+</section>  
 
-    <!-- CHAT -->
-    <section class="chat-panel" id="chatPanel">
-      <div class="chat-heading">
-        <h2>💬 TIN NHẮN</h2>
-        <span>Chủ LIVE ↔ Người chơi</span>
-      </div>
+<!-- ĐẤU LẠI -->  
+<section id="rematchPanel" class="rematch-panel" hidden>  
+  <div id="rematchMessage">Ván đấu đã kết thúc.</div>  
+</section>  
 
-      <div
-        id="chatMessages"
-        class="chat-messages"
-        aria-live="polite"
-        aria-label="Tin nhắn trong trận đấu"
-      >
-        <div id="chatEmpty" class="chat-empty">
-          Chưa có tin nhắn
-        </div>
-      </div>
-
-      <div class="chat-compose">
-        <input
-          id="chatInput"
-          type="text"
-          maxlength="300"
-          placeholder="Nhập tin nhắn..."
-          autocomplete="off"
-        >
-        <button id="chatSend" type="button" aria-label="Gửi tin nhắn">
-          GỬI
-        </button>
-      </div>
-
-      <p id="chatNotice" class="chat-notice" aria-live="polite"></p>
-    </section>
-
-    <!-- ĐẤU LẠI -->
-    <section id="rematchPanel" class="rematch-panel" hidden>
-      <div id="rematchMessage">Ván đấu đã kết thúc.</div>
-    </section>
-
-    <!-- ĐIỀU KHIỂN -->
-    <section class="actions admin-actions">
-      <button id="next" type="button">
-        Kết thúc ván / Ván mới
-      </button>
-
-      <button id="reset" type="button">
-        Reset điểm
-      </button>
-    </section>
-
-    <footer class="admin-footer">
-      <a href="/qr.html">Mở trang QR cho TikTok LIVE</a>
-      <span> · </span>
-      <a href="/play">Mở trang người chơi</a>
-    </footer>
-
-  </main>
+<!-- ĐIỀU KHIỂN -->  
+<section class="actions admin-actions">  
+  <button id="next" type="button">  
+    Kết thúc ván / Ván mới  
+  </button>  
 
   <script src="/socket.io/socket.io.js"></script>
-  <script src="/sound.js?v=7"></script>
-  <script src="/music.js?v=7"></script>
-  <script src="/effects.js?v=7"></script>
-  <script src="/admin.js?v=6"></script>
-</body>
-</html>
+  <script src="/sound.js?v=8"></script>
+  <script src="/music.js?v=8"></script>
+  <script src="/effects.js?v=8"></script>
+  <script src="/admin.js?v=8"></script>
+  </body>  
+</html>  
