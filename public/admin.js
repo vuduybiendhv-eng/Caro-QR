@@ -1,8 +1,8 @@
 
 /* =========================================================
    CARO LIVE - ADMIN.JS
-   Chủ LIVE: quản lý hàng chờ, đánh X, chat, đấu lại,
-   đồng hồ, điểm số và âm thanh.
+   HOST: Bàn cờ, hàng chờ, chat hai chiều, đồng hồ,
+   tái đấu, điểm số và âm thanh.
    ========================================================= */
 
 (() => {
@@ -29,7 +29,7 @@
   let hostAuthenticated = false;
   let cells = [];
   let chatMessages = [];
-  let lastRoundId = null;
+  let lastWinner = null;
 
   // ========================================================
   // TIỆN ÍCH
@@ -40,44 +40,33 @@
     if (el) el.textContent = String(value ?? "");
   }
 
-  function escapeHTML(value) {
-    return String(value ?? "").replace(/[&<>"']/g, char => ({
-      "&": "&amp;",
-      "<": "&lt;",
-      ">": "&gt;",
-      '"': "&quot;",
-      "'": "&#039;"
-    })[char]);
-  }
-
   function getPin() {
     return String(pinInput?.value || "").trim();
   }
 
   function showMessage(message) {
-    const status = $("status");
-    if (status) status.textContent = message;
+    setText("status", message);
   }
 
   // ========================================================
-  // GỬI YÊU CẦU ADMIN
+  // GỌI API QUẢN TRỊ
   // ========================================================
 
-  async function post(path, body = {}) {
-    const currentPin = getPin();
+  async function post(url, body = {}) {
+    const pin = getPin();
 
-    if (!currentPin) {
+    if (!pin) {
       alert("Vui lòng nhập Admin PIN.");
       pinInput?.focus();
       return { ok: false };
     }
 
     try {
-      const response = await fetch(path, {
+      const response = await fetch(url, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          "x-admin-pin": currentPin
+          "x-admin-pin": pin
         },
         body: JSON.stringify(body),
         cache: "no-store"
@@ -91,56 +80,66 @@
         data = {};
       }
 
-      if (!response.ok || data.ok === false) {
+      if (!response.ok) {
         alert(data.error || "Yêu cầu không thành công.");
         return { ok: false };
       }
 
       return { ...data, ok: true };
+
     } catch (error) {
-      console.error("Lỗi gửi yêu cầu:", error);
+      console.error(error);
       alert("Không kết nối được máy chủ Caro LIVE.");
       return { ok: false };
     }
   }
 
   // ========================================================
-  // XÁC THỰC CHỦ LIVE QUA SOCKET
+  // XÁC THỰC HOST
   // ========================================================
 
   function authenticateHost() {
-    const currentPin = getPin();
+    const pin = getPin();
 
-    if (!currentPin || !socket.connected) return;
+    if (!pin || !socket.connected) {
+      hostAuthenticated = false;
+      renderChat();
+      return;
+    }
 
-    socket.emit("host:authenticate", {
-      pin: currentPin
-    });
+    hostAuthenticated = false;
+    socket.emit("host:authenticate", { pin });
+    renderChat();
   }
 
   socket.on("host:authenticated", () => {
     hostAuthenticated = true;
     renderChat();
-    console.log("Chủ LIVE đã xác thực chat.");
+
+    console.log("Host đã xác thực thành công.");
   });
 
-  socket.on("host:auth-error", message => {
+  // Đúng tên sự kiện trong server.js.
+  socket.on("host:auth-failed", message => {
     hostAuthenticated = false;
-    console.warn("Xác thực chủ LIVE thất bại:", message);
+
+    setText(
+      "chatNotice",
+      message || "Admin PIN không hợp lệ."
+    );
+
+    renderChat();
   });
 
   socket.on("connect", () => {
-    console.log("Admin đã kết nối máy chủ.");
+    console.log("Host đã kết nối máy chủ.");
+    hostAuthenticated = false;
     authenticateHost();
-
-    if (state) {
-      renderBoard(state);
-    }
   });
 
   socket.on("disconnect", () => {
     hostAuthenticated = false;
-    showMessage("Mất kết nối máy chủ. Đang kết nối lại...");
+    showMessage("Mất kết nối. Đang kết nối lại...");
     renderChat();
   });
 
@@ -149,8 +148,12 @@
   });
 
   pinInput?.addEventListener("change", authenticateHost);
+
   pinInput?.addEventListener("keydown", event => {
-    if (event.key === "Enter") authenticateHost();
+    if (event.key === "Enter") {
+      event.preventDefault();
+      authenticateHost();
+    }
   });
 
   // ========================================================
@@ -159,18 +162,21 @@
 
   function playEffect(name) {
     try {
-      const effects = window.CaroEffects;
-      const sound = window.CaroSound;
-
-      if (effects && typeof effects[name] === "function") {
-        effects[name]();
+      if (
+        window.CaroEffects &&
+        typeof window.CaroEffects[name] === "function"
+      ) {
+        window.CaroEffects[name]();
       }
 
-      if (sound && typeof sound[name] === "function") {
-        sound[name]();
+      if (
+        window.CaroSound &&
+        typeof window.CaroSound[name] === "function"
+      ) {
+        window.CaroSound[name]();
       }
     } catch (error) {
-      console.warn("Lỗi hiệu ứng:", name, error);
+      console.warn("Lỗi hiệu ứng:", error);
     }
   }
 
@@ -180,12 +186,10 @@
     const oldCount = previous.board.filter(Boolean).length;
     const newCount = current.board.filter(Boolean).length;
 
-    // Phát âm thanh khi thực sự có thêm quân.
     if (newCount > oldCount) {
       playEffect("move");
     }
 
-    // Tránh phát lại âm thanh khi server gửi trạng thái mỗi giây.
     if (!previous.winner && current.winner) {
       if (current.winner === "X") {
         playEffect("win");
@@ -196,7 +200,7 @@
   }
 
   // ========================================================
-  // BÀN CỜ - TẠO MỘT LẦN, KHÔNG NHẤP NHÁY
+  // BÀN CỜ
   // ========================================================
 
   function createBoard() {
@@ -242,7 +246,10 @@
       const last = s.lastMoves[s.lastMoves.length - 1];
 
       if (typeof last === "number") return last;
-      if (Number.isInteger(last?.index)) return last.index;
+
+      if (Number.isInteger(last?.index)) {
+        return last.index;
+      }
     }
 
     return -1;
@@ -255,16 +262,13 @@
     }
 
     if (
-      state.winner ||
       !state.activePlayer ||
+      state.winner ||
       state.turn !== "X" ||
-      state.board[index]
+      state.board[index] !== null
     ) {
       return;
     }
-
-    const cell = cells[index];
-    if (cell) cell.disabled = true;
 
     const result = await post("/api/admin/move", { index });
 
@@ -276,7 +280,7 @@
   function renderBoard(s) {
     if (!boardEl || !Array.isArray(s.board)) return;
 
-    if (cells.length !== s.board.length) {
+    if (cells.length !== 225) {
       createBoard();
     }
 
@@ -288,29 +292,33 @@
 
       const oldValue = cell.dataset.piece || "";
 
-      if (oldValue !== value) {
+      if (oldValue !== (value || "")) {
         cell.replaceChildren();
         cell.className = "cell";
         delete cell.dataset.piece;
 
         if (value === "X" || value === "O") {
           cell.dataset.piece = value;
+
           cell.classList.add(
-            value,
             value === "X" ? "piece-x" : "piece-o"
           );
 
           const stone = document.createElement("span");
           stone.className = "stone";
           stone.setAttribute("aria-hidden", "true");
+
           cell.appendChild(stone);
         }
       }
 
-      cell.classList.toggle("last-move", index === lastIndex);
+      cell.classList.toggle(
+        "last-move",
+        index === lastIndex
+      );
 
       const canPlay =
-        !value &&
+        value === null &&
         !s.winner &&
         Boolean(s.activePlayer) &&
         s.turn === "X";
@@ -327,7 +335,7 @@
   }
 
   // ========================================================
-  // HÀNG CHỜ NGƯỜI CHƠI
+  // HÀNG CHỜ
   // ========================================================
 
   function getPlayerName(player) {
@@ -341,15 +349,16 @@
   }
 
   function renderQueue(s) {
-    const queue = $("queue");
-    if (!queue) return;
+    const container = $("queue");
+    if (!container) return;
 
-    queue.replaceChildren();
+    container.replaceChildren();
 
     const players = Array.isArray(s.queue) ? s.queue : [];
 
     if (!players.length) {
-      queue.textContent = "Chưa có người chơi trong hàng chờ.";
+      container.textContent =
+        "Chưa có người chơi trong hàng chờ.";
       return;
     }
 
@@ -366,30 +375,46 @@
       const button = document.createElement("button");
       button.type = "button";
       button.textContent = "Chọn đấu";
-      button.disabled = Boolean(s.winner === false && false);
+      button.disabled = Boolean(s.activePlayer);
 
       button.addEventListener("click", async () => {
-        if (!confirm(`Chọn @${username} vào đấu?`)) return;
+        if (state?.activePlayer) {
+          alert("Đang có người chơi trong trận.");
+          return;
+        }
 
-        await post("/api/admin/select", { username });
+        if (!confirm(`Chọn @${username} vào đấu?`)) {
+          return;
+        }
+
+        const result = await post(
+          "/api/admin/select",
+          { username }
+        );
+
+        if (result.ok) {
+          showMessage(`Đã chọn @${username} vào trận.`);
+        }
       });
 
       row.append(label, button);
-      queue.appendChild(row);
+      container.appendChild(row);
     });
   }
 
   // ========================================================
-  // THÔNG TIN, ĐIỂM SỐ
+  // THÔNG TIN VÀ ĐIỂM SỐ
   // ========================================================
 
   function renderInfo(s) {
     if (s.winner === "X") {
-      showMessage("Kết quả: Chủ LIVE chiến thắng!");
+      showMessage("🏆 Chủ LIVE chiến thắng!");
     } else if (s.winner === "O") {
-      showMessage(`Kết quả: @${s.activePlayer || "người chơi"} chiến thắng!`);
+      showMessage(
+        `🏆 @${s.activePlayer || "Người chơi"} chiến thắng!`
+      );
     } else if (s.winner === "D") {
-      showMessage("Ván đấu hòa!");
+      showMessage("🤝 Ván đấu hòa!");
     } else if (!s.activePlayer) {
       showMessage("Đang chờ chủ LIVE chọn người chơi.");
     } else if (s.turn === "X") {
@@ -406,14 +431,11 @@
       s.activePlayer ? "@" + s.activePlayer : "Chưa chọn"
     );
 
-    setText(
-      "host",
-      s.host || "CHỦ LIVE"
-    );
+    setText("host", s.host || "CHỦ LIVE");
   }
 
   // ========================================================
-  // ĐỒNG HỒ CÁT
+  // ĐỒNG HỒ ĐẾM NGƯỢC
   // ========================================================
 
   function renderTimer() {
@@ -421,9 +443,6 @@
     const owner = $("timerOwner");
     const number = $("timerNumber");
     const message = $("timerMessage");
-    const topSand = $("topSand");
-    const bottomSand = $("bottomSand");
-    const stream = $("sandStream");
 
     if (!panel || !number || !state) return;
 
@@ -446,7 +465,12 @@
       panel.classList.add("timer-idle");
 
       if (s.winner) {
-        if (owner) owner.textContent = "🏁 VÁN ĐẤU ĐÃ KẾT THÚC";
+        panel.classList.add("timer-finished");
+
+        if (owner) {
+          owner.textContent = "🏁 VÁN ĐẤU ĐÃ KẾT THÚC";
+        }
+
         number.textContent = "0";
 
         if (message) {
@@ -458,15 +482,16 @@
                 : "Người chơi chiến thắng!";
         }
       } else {
-        if (owner) owner.textContent = "⏳ ĐANG CHỜ LƯỢT CHƠI";
+        if (owner) {
+          owner.textContent = "⏳ ĐANG CHỜ LƯỢT CHƠI";
+        }
+
         number.textContent = String(s.turnTime || 30);
 
-        if (message) message.textContent = "Chờ bắt đầu trận đấu";
+        if (message) {
+          message.textContent = "Chờ bắt đầu trận đấu";
+        }
       }
-
-      if (topSand) topSand.style.transform = "scaleY(1)";
-      if (bottomSand) bottomSand.style.transform = "scaleY(0.05)";
-      if (stream) stream.style.opacity = "0";
 
       return;
     }
@@ -483,16 +508,9 @@
         : `⭕ LƯỢT @${s.activePlayer || "NGƯỜI CHƠI"} (O)`;
     }
 
-    const serverNow = Date.now() + serverClockOffset;
-    const remainingMs = Math.max(0, deadline - serverNow);
+    const now = Date.now() + serverClockOffset;
+    const remainingMs = Math.max(0, deadline - now);
     const seconds = Math.ceil(remainingMs / 1000);
-
-    const totalTime = (Number(s.turnTime) || 30) * 1000;
-
-    const progress = Math.max(
-      0,
-      Math.min(1, remainingMs / totalTime)
-    );
 
     number.textContent = String(seconds);
 
@@ -501,56 +519,29 @@
         ? "⚠️ Nhanh tay! Sắp hết giờ!"
         : isHostTurn
           ? "Chủ LIVE đang có lượt đánh"
-          : `Đang chờ @${s.activePlayer || "người chơi"} đánh`;
+          : `Đang chờ @${s.activePlayer} đánh`;
     }
 
-    if (seconds <= 5) panel.classList.add("timer-warning");
-    if (seconds <= 0) panel.classList.add("timer-finished");
-
-    if (topSand) {
-      topSand.style.transform = `scaleY(${progress})`;
+    if (seconds <= 5) {
+      panel.classList.add("timer-warning");
     }
 
-    if (bottomSand) {
-      bottomSand.style.transform = `scaleY(${1 - progress})`;
-    }
-
-    if (stream) {
-      stream.style.opacity = seconds > 0 ? "1" : "0";
+    if (seconds <= 0) {
+      panel.classList.add("timer-finished");
     }
   }
 
   // ========================================================
-  // KHU VỰC ĐẤU LẠI
+  // TÁI ĐẤU
   // ========================================================
-
-  function ensureRematchPanel() {
-    let panel = $("rematchPanel");
-    if (panel) return panel;
-
-    panel = document.createElement("section");
-    panel.id = "rematchPanel";
-    panel.className = "rematch-panel";
-    panel.hidden = true;
-
-    const status = $("status");
-
-    if (status?.parentNode) {
-      status.parentNode.insertBefore(panel, status.nextSibling);
-    } else if (boardEl?.parentNode) {
-      boardEl.parentNode.insertBefore(panel, boardEl.nextSibling);
-    }
-
-    return panel;
-  }
 
   function renderRematch(s) {
-    const panel = ensureRematchPanel();
+    const panel = $("rematchPanel");
     if (!panel) return;
 
     panel.replaceChildren();
 
-    if (!s.winner || !s.activePlayer) {
+    if (!s.winner || s.winner === "D" || !s.activePlayer) {
       panel.hidden = true;
       return;
     }
@@ -562,11 +553,8 @@
     const button = document.createElement("button");
 
     button.type = "button";
-    button.className = "rematch-button";
 
-    const request = s.rematchRequest;
-
-    if (request === "viewer") {
+    if (s.rematchRequest === "viewer") {
       title.textContent = "Người xem muốn đấu lại!";
       description.textContent =
         `@${s.activePlayer} đang chờ chủ LIVE xác nhận.`;
@@ -574,7 +562,7 @@
       button.textContent = "✓ Đồng ý đấu lại";
 
       button.addEventListener("click", async () => {
-        if (!confirm("Bắt đầu ván đấu lại với người chơi này?")) return;
+        if (!confirm("Bắt đầu ván đấu lại?")) return;
 
         await post("/api/admin/rematch-confirm");
       });
@@ -583,7 +571,7 @@
       return;
     }
 
-    if (request === "host") {
+    if (s.rematchRequest === "host") {
       title.textContent = "Đã gửi yêu cầu đấu lại!";
       description.textContent =
         `Đang chờ @${s.activePlayer} xác nhận.`;
@@ -594,12 +582,12 @@
 
     title.textContent = "Ván đấu đã kết thúc!";
     description.textContent =
-      `Bạn có muốn đấu thêm một ván với @${s.activePlayer}?`;
+      `Bạn có muốn đấu thêm với @${s.activePlayer}?`;
 
     button.textContent = "↻ Yêu cầu đấu lại";
 
     button.addEventListener("click", async () => {
-      if (!confirm("Gửi yêu cầu đấu lại cho người xem?")) return;
+      if (!confirm("Gửi lời mời đấu lại?")) return;
 
       await post("/api/admin/rematch-request");
     });
@@ -608,161 +596,48 @@
   }
 
   // ========================================================
-  // CHAT CHỦ LIVE - NGƯỜI ĐANG ĐẤU
+  // CHAT HOST - VIEWER
   // ========================================================
 
-  function ensureChatPanel() {
-    let panel = $("chatPanel");
-    if (panel) return panel;
-
-    panel = document.createElement("section");
-    panel.id = "chatPanel";
-    panel.className = "chat-panel";
-
-    panel.innerHTML = `
-      <h2>💬 TIN NHẮN VỚI NGƯỜI CHƠI</h2>
-      <div id="chatMessages" class="chat-messages" aria-live="polite">
-        <p id="chatEmpty">Tin nhắn giữa chủ LIVE và người đang đấu sẽ hiện ở đây.</p>
-      </div>
-      <div class="chat-compose">
-        <input id="chatInput" type="text" maxlength="300"
-          placeholder="Nhập tin nhắn..." autocomplete="off">
-        <button id="chatSend" type="button" aria-label="Gửi tin nhắn">➤</button>
-      </div>
-      <p id="chatNotice" class="chat-notice"></p>
-    `;
-
-    const soundbar = document.querySelector(".soundbar");
-    const boardSection = boardEl?.closest("section");
-
-    if (soundbar?.parentNode) {
-      soundbar.parentNode.insertBefore(panel, soundbar.nextSibling);
-    } else if (boardSection) {
-      boardSection.appendChild(panel);
-    } else {
-      document.querySelector("main")?.appendChild(panel);
-    }
-
-    addChatStyles();
-    $("chatSend")?.addEventListener("click", sendChat);
-
-    $("chatInput")?.addEventListener("keydown", event => {
-      if (event.key === "Enter") {
-        event.preventDefault();
-        sendChat();
-      }
-    });
-
-    return panel;
-  }
-
-  function addChatStyles() {
-    if ($("adminChatStyles")) return;
-
-    const style = document.createElement("style");
-    style.id = "adminChatStyles";
-
-    style.textContent = `
-      .chat-panel {
-        margin: 16px 0;
-        padding: 14px;
-        border: 1px solid rgba(190,145,75,.4);
-        border-radius: 16px;
-        background: rgba(255,248,232,.96);
-      }
-
-      .chat-messages {
-        height: 190px;
-        overflow-y: auto;
-        padding: 10px;
-        border-radius: 10px;
-        background: #fff;
-        border: 1px solid #ead9b8;
-      }
-
-      .chat-message {
-        margin: 7px 0;
-        padding: 8px 11px;
-        border-radius: 10px;
-        background: #f5ead5;
-        overflow-wrap: anywhere;
-      }
-
-      .chat-message.host-message {
-        margin-left: 12%;
-        background: #fce2b7;
-      }
-
-      .chat-message.viewer-message {
-        margin-right: 12%;
-        background: #e6f0ff;
-      }
-
-      .chat-message strong {
-        display: block;
-        margin-bottom: 3px;
-        font-size: 12px;
-      }
-
-      .chat-compose {
-        display: flex;
-        gap: 8px;
-        margin-top: 9px;
-      }
-
-      .chat-compose input {
-        flex: 1;
-        min-width: 0;
-      }
-
-      .chat-compose button {
-        min-width: 48px;
-      }
-
-      .chat-notice {
-        min-height: 18px;
-        font-size: 12px;
-      }
-    `;
-
-    document.head.appendChild(style);
-  }
-
   function renderChat() {
-    ensureChatPanel();
-
     const container = $("chatMessages");
+    const input = $("chatInput");
+    const send = $("chatSend");
+    const notice = $("chatNotice");
+
     if (!container) return;
 
     container.replaceChildren();
 
     if (!chatMessages.length) {
-      const empty = document.createElement("p");
+      const empty = document.createElement("div");
+      empty.className = "chat-empty";
       empty.textContent = "Chưa có tin nhắn.";
       container.appendChild(empty);
+    } else {
+      chatMessages.forEach(message => {
+        appendChatMessage(message, false);
+      });
     }
-
-    chatMessages.forEach(message => {
-      appendChatMessage(message, false);
-    });
 
     container.scrollTop = container.scrollHeight;
 
-    const input = $("chatInput");
-    const send = $("chatSend");
-    const active = Boolean(state?.activePlayer && !state?.winner);
+    // Server cho phép host chat khi có đối thủ đang được chọn,
+    // kể cả sau khi ván đấu kết thúc.
+    const canChat = Boolean(
+      hostAuthenticated &&
+      state?.activePlayer
+    );
 
-    if (input) input.disabled = !hostAuthenticated || !active;
-    if (send) send.disabled = !hostAuthenticated || !active;
-
-    const notice = $("chatNotice");
+    if (input) input.disabled = !canChat;
+    if (send) send.disabled = !canChat;
 
     if (notice) {
       notice.textContent = !hostAuthenticated
         ? "Nhập Admin PIN để kết nối chat."
-        : !active
-          ? "Chat sẽ mở khi có người chơi đang đấu."
-          : "Đang chat với @" + state.activePlayer;
+        : !state?.activePlayer
+          ? "Chưa có người chơi đang đấu."
+          : `Đang trò chuyện với @${state.activePlayer}`;
     }
   }
 
@@ -770,10 +645,11 @@
     const container = $("chatMessages");
     if (!container) return;
 
-    const empty = container.querySelector("p");
+    const empty = container.querySelector(".chat-empty");
     if (empty) empty.remove();
 
     const row = document.createElement("div");
+
     const isHost = message?.sender === "host";
 
     row.className = "chat-message " +
@@ -785,7 +661,9 @@
       : "@" + String(message?.username || "Người chơi");
 
     const content = document.createElement("div");
-    content.textContent = String(message?.text || message?.message || "");
+
+    // Server sử dụng thuộc tính message.
+    content.textContent = String(message?.message || "");
 
     row.append(name, content);
     container.appendChild(row);
@@ -806,12 +684,15 @@
       return;
     }
 
-    if (!state?.activePlayer || state?.winner) {
-      setText("chatNotice", "Hiện chưa có người chơi đang đấu.");
+    if (!state?.activePlayer) {
+      setText("chatNotice", "Chưa có người chơi để trò chuyện.");
       return;
     }
 
-    socket.emit("chat:send", text);
+    // Gửi object để thống nhất với client.js phía người xem.
+    socket.emit("chat:send", {
+      message: text
+    });
 
     if (input) {
       input.value = "";
@@ -819,12 +700,34 @@
     }
   }
 
+  $("chatSend")?.addEventListener("click", sendChat);
+
+  $("chatInput")?.addEventListener("keydown", event => {
+    if (event.key === "Enter") {
+      event.preventDefault();
+      sendChat();
+    }
+  });
+
   socket.on("chat:history", messages => {
-    chatMessages = Array.isArray(messages) ? messages.slice(-50) : [];
+    chatMessages = Array.isArray(messages)
+      ? messages.slice(-50)
+      : [];
+
     renderChat();
   });
 
   socket.on("chat:message", message => {
+    if (!message) return;
+
+    // Hạn chế hiển thị trùng nếu server gửi lại lịch sử.
+    if (
+      message.id &&
+      chatMessages.some(item => item.id === message.id)
+    ) {
+      return;
+    }
+
     chatMessages.push(message);
 
     if (chatMessages.length > 50) {
@@ -844,7 +747,7 @@
   });
 
   // ========================================================
-  // NHẬN TRẠNG THÁI TỪ SERVER
+  // NHẬN TRẠNG THÁI SERVER
   // ========================================================
 
   function render(s) {
@@ -860,26 +763,26 @@
       serverClockOffset = Number(s.serverTime) - Date.now();
     }
 
-    if (s.roundId !== undefined) {
-      lastRoundId = s.roundId;
-    }
-
     renderInfo(s);
     renderBoard(s);
     renderQueue(s);
     renderTimer();
     renderRematch(s);
     renderChat();
+
+    lastWinner = s.winner;
   }
 
   socket.on("state", render);
 
   // ========================================================
-  // NÚT KẾT THÚC VÁN / VÁN MỚI
+  // NÚT CHUYỂN NGƯỜI CHƠI
   // ========================================================
 
   $("next")?.addEventListener("click", async () => {
-    if (!confirm("Kết thúc ván và trở về hàng chờ?")) return;
+    if (!confirm("Kết thúc ván và chuyển sang hàng chờ?")) {
+      return;
+    }
 
     await post("/api/admin/next");
   });
@@ -907,7 +810,7 @@
     const username = String(input?.value || "").trim();
 
     if (!username) {
-      alert("Nhập tên TikTok người tặng quà.");
+      alert("Nhập tên TikTok người chơi.");
       input?.focus();
       return;
     }
@@ -924,8 +827,7 @@
 
   // ========================================================
   // NÚT ÂM THANH
-  // sound.js tự quản lý sự kiện click.
-  // Không thêm listener ở admin.js để tránh bật/tắt hai lần.
+  // sound.js tự quản lý click.
   // ========================================================
 
   function updateSoundButton() {
@@ -941,7 +843,7 @@
   }
 
   // ========================================================
-  // ĐỒNG HỒ CẬP NHẬT LIÊN TỤC
+  // CẬP NHẬT ĐỒNG HỒ
   // ========================================================
 
   setInterval(() => {
@@ -953,21 +855,22 @@
   // ========================================================
 
   createBoard();
-  ensureRematchPanel();
-  ensureChatPanel();
   renderChat();
   updateSoundButton();
 
   fetch("/api/state", { cache: "no-store" })
     .then(response => {
-      if (!response.ok) throw new Error("Không tải được trạng thái.");
+      if (!response.ok) {
+        throw new Error("Không tải được trạng thái.");
+      }
+
       return response.json();
     })
     .then(render)
     .catch(error => {
-      console.warn("Không tải được trạng thái ban đầu:", error);
+      console.warn("Lỗi tải trạng thái:", error);
     });
 
   console.log("Caro LIVE Admin đã khởi chạy.");
+
 })();
-w
