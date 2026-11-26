@@ -26,11 +26,15 @@ const BASE_URL = (process.env.PUBLIC_BASE_URL || "").replace(/\/$/, "");
 const TURN_TIME = 30;
 const CHAT_LIMIT = 50;
 
-// Emoji được phép sử dụng.
+// Chỉ cho phép đúng 7 emoji đã thống nhất.
 const REACTION_EMOJIS = new Set([
-  "❤️", "😂", "😍", "🔥", "👏",
-  "👍", "😮", "😭", "🤣", "🎉",
-  "💪", "🥰", "💖", "⭐", "😎"
+  "😂",
+  "👍",
+  "❤️",
+  "😱",
+  "👏",
+  "❌",
+  "👋"
 ]);
 
 const REACTION_COOLDOWN = 500;
@@ -427,6 +431,11 @@ function sendChat(socket, value) {
 // ==================== EMOJI REACTIONS ====================
 
 function sendReaction(socket, data = {}) {
+  // Chặn payload null hoặc dữ liệu không phải object.
+  if (!data || typeof data !== "object" || Array.isArray(data)) {
+    return;
+  }
+
   const isHost = socket.data.isHost === true;
   const isViewer = viewerIsActive(socket);
 
@@ -438,11 +447,13 @@ function sendReaction(socket, data = {}) {
 
   const emoji = String(data.emoji || "");
 
+  // Chỉ chấp nhận đúng 7 emoji.
   if (!REACTION_EMOJIS.has(emoji)) return;
 
   const now = Date.now();
   const lastSent = reactionLastSent.get(socket.id) || 0;
 
+  // Mỗi socket chỉ được gửi một emoji sau mỗi 500ms.
   if (now - lastSent < REACTION_COOLDOWN) return;
 
   reactionLastSent.set(socket.id, now);
@@ -459,6 +470,7 @@ function sendReaction(socket, data = {}) {
     : 50;
 
   // Chỉ phát tới HOST và VIEWER trong phòng trận đấu.
+  // Không thêm emoji vào chatMessages.
   io.to("game-chat").emit("reaction:show", {
     emoji,
     x,
@@ -727,7 +739,7 @@ app.post("/api/admin/reset-score", authAdmin, (_req, res) => {
 io.on("connection", socket => {
   socket.emit("state", publicState());
 
-  // Host đăng nhập Socket.IO để sử dụng chat.
+  // Host đăng nhập Socket.IO để sử dụng chat và emoji.
   socket.on("host:authenticate", ({ pin } = {}) => {
     if (
       !ADMIN_PIN ||
