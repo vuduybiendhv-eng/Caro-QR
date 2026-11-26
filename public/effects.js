@@ -1,5 +1,14 @@
 
+/* =========================================================
+   CARO LIVE - EFFECTS.JS
+   Hiệu ứng Tết: hoa mai, hoa đào, pháo giấy,
+   GIF chiến thắng và thất bại.
+   Không tự phát âm thanh.
+   ========================================================= */
+
 (() => {
+  "use strict";
+
   const canvas = document.getElementById("celebrationCanvas");
   if (!canvas) return;
 
@@ -8,19 +17,22 @@
 
   let w = 0;
   let h = 0;
+
   let flowers = [];
   let particles = [];
+
   let raf = 0;
   let resultTimer = null;
   let removeTimer = null;
+
   let isRunning = false;
 
   const rand = (min, max) =>
     Math.random() * (max - min) + min;
 
-  // =========================
-  // GIAO DIỆN HIỆU ỨNG
-  // =========================
+  // ========================================================
+  // CSS HIỆU ỨNG KẾT QUẢ
+  // ========================================================
 
   const style = document.createElement("style");
 
@@ -136,9 +148,9 @@
 
   document.head.appendChild(style);
 
-  // =========================
+  // ========================================================
   // KÍCH THƯỚC CANVAS
-  // =========================
+  // ========================================================
 
   function resize() {
     const d = Math.min(window.devicePixelRatio || 1, 2);
@@ -155,13 +167,13 @@
     ctx.setTransform(d, 0, 0, d, 0, 0);
   }
 
-  // =========================
+  // ========================================================
   // KIỂM TRA VÙNG BÀN CỜ
-  // =========================
+  // ========================================================
 
-  function isInsideBoard(x, y, margin = 12) {
+  function getBoardRect() {
     const board = document.getElementById("board");
-    if (!board) return false;
+    if (!board) return null;
 
     const rect = board.getBoundingClientRect();
 
@@ -169,10 +181,19 @@
       rect.width <= 0 ||
       rect.height <= 0 ||
       rect.bottom < 0 ||
-      rect.top > h
+      rect.top > h ||
+      rect.right < 0 ||
+      rect.left > w
     ) {
-      return false;
+      return null;
     }
+
+    return rect;
+  }
+
+  function isInsideBoard(x, y, margin = 12) {
+    const rect = getBoardRect();
+    if (!rect) return false;
 
     return (
       x >= rect.left - margin &&
@@ -182,9 +203,9 @@
     );
   }
 
-  // =========================
+  // ========================================================
   // TẠO HOA MAI / HOA ĐÀO
-  // =========================
+  // ========================================================
 
   function makeFlower() {
     let flower = {
@@ -200,14 +221,12 @@
       type: Math.random() < .5 ? "mai" : "dao"
     };
 
-    // Nếu vị trí ban đầu nằm trên bàn cờ,
-    // đưa hoa ra ngoài vùng bàn cờ.
+    // Nếu hoa xuất hiện trong vùng bàn cờ,
+    // chuyển hoa ra một trong hai bên.
     if (isInsideBoard(flower.x, 0, 20)) {
-      const board = document.getElementById("board");
+      const rect = getBoardRect();
 
-      if (board) {
-        const rect = board.getBoundingClientRect();
-
+      if (rect) {
         flower.x = Math.random() < .5
           ? rect.left - 25
           : rect.right + 25;
@@ -217,9 +236,9 @@
     return flower;
   }
 
-  // =========================
+  // ========================================================
   // VẼ CÁNH HOA
-  // =========================
+  // ========================================================
 
   function drawPetal(size, color, highlight) {
     ctx.fillStyle = color;
@@ -253,9 +272,9 @@
     ctx.fill();
   }
 
-  // =========================
+  // ========================================================
   // VẼ HOA MAI / HOA ĐÀO
-  // =========================
+  // ========================================================
 
   function drawFlower(flower) {
     ctx.save();
@@ -292,9 +311,9 @@
     ctx.restore();
   }
 
-  // =========================
+  // ========================================================
   // TẠO PHÁO GIẤY
-  // =========================
+  // ========================================================
 
   function burst(x, y, count = 80, type = "win") {
     const colors = type === "defeat"
@@ -338,9 +357,9 @@
     }
   }
 
-  // =========================
+  // ========================================================
   // VẼ HẠT HIỆU ỨNG
-  // =========================
+  // ========================================================
 
   function drawParticles() {
     for (let i = particles.length - 1; i >= 0; i--) {
@@ -396,9 +415,9 @@
     ctx.globalAlpha = 1;
   }
 
-  // =========================
+  // ========================================================
   // VÒNG LẶP HOA RƠI
-  // =========================
+  // ========================================================
 
   function tick() {
     if (!isRunning) return;
@@ -426,10 +445,15 @@
       }
     }
 
+    // Pháo giấy chỉ xuất hiện khi kết thúc ván.
     drawParticles();
 
     raf = requestAnimationFrame(tick);
   }
+
+  // ========================================================
+  // KHỞI ĐỘNG / DỪNG
+  // ========================================================
 
   function start() {
     cancelAnimationFrame(raf);
@@ -455,22 +479,18 @@
     cancelAnimationFrame(raf);
   }
 
-  // =========================
+  // ========================================================
   // HIỆU ỨNG KHI ĐÁNH QUÂN
-  // =========================
+  // ========================================================
 
   function move() {
-    // Hiệu ứng nhẹ, không tạo pháo giấy lớn
-    // che bàn cờ mỗi lần đánh.
-    const x = w / 2;
-    const y = h / 2;
-
-    burst(x, y, 5, "win");
+    // Không tạo pháo giấy trên bàn cờ.
+    // Âm báo nước đi được xử lý riêng trong sound.js.
   }
 
-  // =========================
+  // ========================================================
   // HIỆU ỨNG KẾT QUẢ
-  // =========================
+  // ========================================================
 
   function showResult(type, message) {
     let overlay = document.getElementById("caroResultOverlay");
@@ -560,9 +580,9 @@
     showResult("defeat", message || "CỐ GẮNG Ở VÁN SAU NHÉ!");
   }
 
-  // =========================
+  // ========================================================
   // SỰ KIỆN TRÌNH DUYỆT
-  // =========================
+  // ========================================================
 
   window.addEventListener("resize", () => {
     resize();
@@ -576,9 +596,9 @@
     }
   });
 
-  // =========================
+  // ========================================================
   // KHỞI ĐỘNG
-  // =========================
+  // ========================================================
 
   start();
 
@@ -591,4 +611,6 @@
       message || "CHIẾN THẮNG!"
     )
   };
+
+  console.log("Caro LIVE Effects đã sẵn sàng.");
 })();
