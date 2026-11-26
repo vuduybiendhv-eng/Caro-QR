@@ -2111,3 +2111,90 @@ footer {
     animation: none;
   }
 }
+
+/* ===== CARO LIVE - BAN CO VA QUAN CO ===== */
+
+#board {
+  display: grid !important;
+  grid-template-columns: repeat(15, minmax(0, 1fr)) !important;
+  grid-template-rows: repeat(15, minmax(0, 1fr)) !important;
+  width: 100% !important;
+  aspect-ratio: 1 / 1 !important;
+  max-width: 760px !important;
+  overflow: visible !important;
+}
+
+#board > .cell {
+  position: relative !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  min-width: 0 !important;
+  min-height: 0 !important;
+  width: 100% !important;
+  height: 100% !important;
+  padding: 0 !important;
+  overflow: visible !important;
+  opacity: 1 !important;
+}
+
+#board > .cell > .stone {
+  display: block !important;
+  position: relative !important;
+  z-index: 10 !important;
+  width: 78% !important;
+  height: 78% !important;
+  min-width: 4px !important;
+  min-height: 4px !important;
+  border-radius: 50% !important;
+  opacity: 1 !important;
+  visibility: visible !important;
+  pointer-events: none !important;
+}
+
+/* X - QUAN CHU LIVE */
+#board > .cell[data-piece="X"] > .stone {
+  background: radial-gradient(
+    circle at 30% 25%,
+    #ffdada 0%,
+    #ff5555 28%,
+    #d00020 65%,
+    #650014 100%
+  ) !important;
+  border: 2px solid #ffaaaa !important;
+  box-shadow:
+    0 2px 5px rgba(80,0,0,.55),
+    inset 0 2px 4px rgba(255,255,255,.65) !important;
+}
+
+/* O - QUAN NGUOI CHOI */
+#board > .cell[data-piece="O"] > .stone {
+  background: radial-gradient(
+    circle at 30% 25%,
+    #929292 0%,
+    #3b3b3b 30%,
+    #111 68%,
+    #000 100%
+  ) !important;
+  border: 2px solid #999 !important;
+  box-shadow:
+    0 2px 5px rgba(0,0,0,.65),
+    inset 0 2px 4px rgba(255,255,255,.35) !important;
+}
+
+/* Danh dau nuoc di moi */
+#board > .cell.last-move {
+  outline: 3px solid #fff06b !important;
+  outline-offset: -3px !important;
+  z-index: 15 !important;
+}
+
+/* Khong lam mo quan da danh */
+#board > .cell:disabled {
+  opacity: 1 !important;
+  filter: none !important;
+}
+
+.rematch-panel[hidden] {
+  display: none !important;
+}
