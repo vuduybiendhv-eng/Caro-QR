@@ -7,7 +7,7 @@
    - Chat và đấu lại
    - Đồng bộ trạng thái
    - Âm thanh, hiệu ứng
-   - 7 emoji bay nổi trên bàn cờ
+   - 7 emoji nhỏ gọn bay nổi trên bàn cờ
 ========================================================= */
 
 (() => {
@@ -557,7 +557,7 @@
   });
 
   // ========================================================
-  // EMOJI BAY NỔI - CHỈ 7 EMOJI
+  // EMOJI BAY NỔI - 7 EMOJI NHỎ GỌN
   // ========================================================
 
   const reactionList = [
@@ -576,21 +576,18 @@
       @keyframes caroReactionFloat {
         0% {
           opacity: 0;
-          transform: translate(-50%, 15px)
-                     scale(.6) rotate(-10deg);
+          transform: translate(-50%, 8px) scale(.65);
         }
         15% {
           opacity: 1;
         }
         70% {
           opacity: 1;
-          transform: translate(-50%, -65px)
-                     scale(1.2) rotate(10deg);
+          transform: translate(-50%, -38px) scale(1.05);
         }
         100% {
           opacity: 0;
-          transform: translate(-50%, -110px)
-                     scale(.8) rotate(-8deg);
+          transform: translate(-50%, -65px) scale(.8);
         }
       }
 
@@ -609,20 +606,33 @@
         z-index: 50;
       }
 
+      /* Thanh emoji gọn một hàng */
       #reactionToolbar {
-        display: flex;
-        flex-wrap: wrap;
+        display: grid;
+        grid-template-columns: repeat(7, 29px);
         justify-content: center;
-        gap: 7px;
-        padding: 10px 4px;
+        align-items: center;
+        gap: 3px;
+        width: 100%;
+        box-sizing: border-box;
+        padding: 4px 2px;
+        margin: 0 auto;
       }
 
+      /* Nút emoji nhỏ hơn, giảm chiều cao */
       #reactionToolbar button {
-        min-width: 38px;
-        min-height: 38px;
-        padding: 4px;
-        border-radius: 12px;
-        font-size: 23px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        width: 29px;
+        height: 29px;
+        min-width: 0;
+        min-height: 0;
+        padding: 0;
+        margin: 0;
+        border-radius: 8px;
+        font-size: 17px;
+        line-height: 1;
         cursor: pointer;
         touch-action: manipulation;
       }
@@ -630,6 +640,22 @@
       #reactionToolbar button:disabled {
         opacity: .4;
         cursor: not-allowed;
+      }
+
+      /* Điện thoại rất hẹp */
+      @media (max-width: 340px) {
+        #reactionToolbar {
+          grid-template-columns: repeat(7, 25px);
+          gap: 2px;
+          padding: 3px 1px;
+        }
+
+        #reactionToolbar button {
+          width: 25px;
+          height: 25px;
+          font-size: 15px;
+          border-radius: 6px;
+        }
       }
     `;
 
@@ -670,7 +696,7 @@
     overlay.setAttribute("aria-hidden", "true");
     stage.appendChild(overlay);
 
-    // Thanh emoji nằm bên dưới bàn cờ.
+    // Thanh emoji nằm ngay dưới bàn cờ.
     const toolbar = document.createElement("div");
     toolbar.id = "reactionToolbar";
 
@@ -733,11 +759,12 @@
       position: absolute;
       left: ${x}%;
       top: ${y}%;
-      font-size: clamp(25px, 5vw, 42px);
+      font-size: clamp(20px, 3.5vw, 30px);
+      line-height: 1;
       pointer-events: none;
       transform: translate(-50%, 0);
       animation: caroReactionFloat 2.2s ease-out forwards;
-      filter: drop-shadow(0 3px 5px rgba(0,0,0,.35));
+      filter: drop-shadow(0 2px 3px rgba(0,0,0,.3));
       will-change: transform, opacity;
     `;
 
