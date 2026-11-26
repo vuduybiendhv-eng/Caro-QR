@@ -1,535 +1,386 @@
 
+/* =========================================================
+   CARO LIVE - CLIENT.JS
+   Dành cho người xem: đăng ký, nhận bàn cờ, đánh quân O,
+   nhận quân X từ chủ phòng, âm thanh và hiệu ứng.
+   ========================================================= */
+
 (() => {
   "use strict";
 
-  const socket = io();
+  // ---------- KẾT NỐI ----------
+  if (typeof window.io !== "function") {
+    console.error("Không tải được Socket.IO. Kiểm tra /socket.io/socket.io.js");
+    return;
+  }
 
-  // ===== DOM =====
+  const socket = window.io({
+    transports: ["websocket", "polling"],
+    reconnection: true,
+    reconnectionAttempts: Infinity,
+    reconnectionDelay: 1000,
+    reconnectionDelayMax: 5000
+  });
+
+  // ---------- PHẦN TỬ GIAO DIỆN ----------
   const boardEl = document.getElementById("board");
   const noticeEl = document.getElementById("notice");
-  const statusEl = document.getElementById("status");
-  const soundToggle = document.getElementById("soundToggle");
-
-  const joinSection =
-    document.querySelector(".caro-layout > .join") ||
-    document.getElementById("join");
-
   const joinBtn = document.getElementById("join");
   const usernameInput = document.getElementById("username");
 
-  // ===== LOCAL STATE =====
+  // Các phần tử thông tin có thể có trên giao diện.
+  const roomEl = document.getElementById("roomName");
+  const hostEl = document.getElementById("hostName");
+  const scoreXEl = document.getElementById("scoreX");
+  const scoreOEl = document.getElementById("scoreO");
+  const opponentEl = document.getElementById("opponentName");
+  const statusEl = document.getElementById("status");
+  const turnEl = document.getElementById("turnInfo");
+  const timerEl = document.getElementById("timer");
+
+  // ---------- TRẠNG THÁI ----------
   let state = null;
-  let myName = localStorage.getItem("caro_username") || "";
+  let username = "";
   let registered = false;
-  let pendingMove = false;
-  let lastRenderedMove = null;
-  let lastWinner = null;
-  let lastBoardCount = 0;
-  let noticeTimeout = null;
+  let lastNotice = "";
 
-  // ===== REMATCH PANEL =====
-  const rematchPanel = document.createElement("section");
-  rematchPanel.id = "rematchPanel";
-  rematchPanel.className = "rematch-panel";
-  rematchPanel.hidden = true;
-
-  if (joinSection && joinSection.parentNode) {
-    joinSection.parentNode.insertBefore(rematchPanel, joinSection.nextSibling);
-  } else if (boardEl && boardEl.parentNode) {
-    boardEl.parentNode.insertBefore(rematchPanel, boardEl.nextSibling);
-  }
-
-  // ===== HELPERS =====
-  function escapeHTML(value) {
-    return String(value ?? "").replace(/[&<>"']/g, char => ({
-      "&": "&amp;",
-      "<": "&lt;",
-      ">": "&gt;",
-      '"': "&quot;",
-      "'": "&#039;"
-    })[char]);
-  }
-
-  function showNotice(message, duration = 3500) {
-    if (!noticeEl) return;
-
-    noticeEl.textContent = message;
-    noticeEl.classList.add("show");
-
-    clearTimeout(noticeTimeout);
-    noticeTimeout = setTimeout(() => {
-      noticeEl.classList.remove("show");
-    }, duration);
-  }
-
-  function playSound(type) {
-    if (soundToggle && !soundToggle.checked) return;
-
-    if (window.CaroSound && typeof window.CaroSound[type] === "function") {
-      window.CaroSound[type]();
+  // ---------- TIỆN ÍCH ----------
+  function getSavedUsername() {
+    try {
+      return localStorage.getItem("caro_live_username") || "";
+    } catch {
+      return "";
     }
   }
 
-  function playEffect(type) {
-    if (!window.CaroEffects) return;
-
-    if (typeof window.CaroEffects[type] === "function") {
-      window.CaroEffects[type]();
+  function saveUsername(name) {
+    try {
+      localStorage.setItem("caro_live_username", name);
+    } catch {
+      // Không ảnh hưởng nếu trình duyệt chặn localStorage.
     }
   }
 
-  function boardCount(board) {
-    return Array.isArray(board)
-      ? board.filter(Boolean).length
-      : 0;
+  function showNotice(message) {
+    if (!noticeEl || !message) return;
+
+    lastNotice = String(message);
+    noticeEl.textContent = lastNotice;
+    noticeEl.classList.remove("notice-hidden");
+
+    if (window.CaroEffects && typeof window.CaroEffects.notice === "function") {
+      window.CaroEffects.notice(lastNotice);
+    }
   }
 
-  function getMyQueueItem(s) {
-    if (!myName) return null;
-
-    const all = [
-      ...(Array.isArray(s.pendingQueue) ? s.pendingQueue : []),
-      ...(Array.isArray(s.queue) ? s.queue : [])
-    ];
-
-    return all.find(item => {
-      const name = typeof item === "string" ? item : item?.name;
-      return name && name.toLowerCase() === myName.toLowerCase();
-    }) || null;
+  function setText(element, value) {
+    if (element && value !== undefined && value !== null) {
+      element.textContent = String(value);
+    }
   }
 
-  function isMyGame(s) {
-    if (!s?.activePlayer || !myName) return false;
-
-    const activeName = typeof s.activePlayer === "string"
-      ? s.activePlayer
-      : s.activePlayer.name;
-
-    return activeName &&
-      activeName.toLowerCase() === myName.toLowerCase();
+  function playSound(name) {
+    if (
+      window.CaroSound &&
+      typeof window.CaroSound[name] === "function" &&
+      window.CaroSound.isEnabled()
+    ) {
+      window.CaroSound[name]();
+    }
   }
 
-  // ===== REGISTRATION =====
-  function registerViewer() {
-    if (!myName || !socket.connected) return;
+  function sameName(a, b) {
+    return String(a || "").trim().toLowerCase() ===
+      String(b || "").trim().toLowerCase();
+  }
 
-    socket.emit("viewer:register", {
-      username: myName,
-      name: myName
+  // ---------- CẬP NHẬT THÔNG TIN ----------
+  function renderInfo(s) {
+    setText(roomEl, s.roomName || s.room || "Phòng Caro Live · 15×15");
+    setText(hostEl, s.hostName || s.host || "CHỦ LIVE");
+
+    if (s.scores) {
+      setText(scoreXEl, s.scores.X ?? 0);
+      setText(scoreOEl, s.scores.O ?? 0);
+    }
+
+    if (s.activePlayer) {
+      setText(opponentEl, s.activePlayer);
+    }
+
+    if (s.winner) {
+      setText(
+        statusEl,
+        s.winner === "O"
+          ? "BẠN ĐÃ CHIẾN THẮNG!"
+          : "CHỦ LIVE ĐÃ CHIẾN THẮNG!"
+      );
+    } else if (!s.activePlayer) {
+      setText(statusEl, "Đang chờ người chơi");
+    } else if (s.turn === "O") {
+      setText(statusEl, "Đến lượt bạn đánh");
+    } else {
+      setText(statusEl, "Đang chờ chủ LIVE đánh");
+    }
+
+    if (s.turn) {
+      setText(
+        turnEl,
+        s.turn === "X" ? "Lượt quân X - Chủ LIVE" : "Lượt quân O - Người chơi"
+      );
+    }
+
+    if (s.remainingSeconds !== undefined) {
+      setText(timerEl, Math.max(0, Number(s.remainingSeconds) || 0));
+    }
+  }
+
+  // ---------- PHÁT HIỆN NƯỚC ĐI MỚI ----------
+  function detectChanges(previous, current) {
+    if (!previous || !Array.isArray(previous.board)) return;
+
+    const oldBoard = previous.board;
+    const newBoard = current.board;
+
+    if (!Array.isArray(newBoard)) return;
+
+    let newPiece = "";
+
+    for (let i = 0; i < newBoard.length; i++) {
+      if (!oldBoard[i] && newBoard[i]) {
+        newPiece = newBoard[i];
+        break;
+      }
+    }
+
+    // Có quân mới trên bàn: phát âm thanh.
+    if (newPiece) {
+      playSound("move");
+
+      if (window.CaroEffects && typeof window.CaroEffects.move === "function") {
+        window.CaroEffects.move();
+      }
+    }
+
+    // Chỉ phát âm thanh kết quả khi vừa có người thắng.
+    if (!previous.winner && current.winner) {
+      if (current.winner === "O") {
+        playSound("win");
+
+        if (window.CaroEffects && typeof window.CaroEffects.win === "function") {
+          window.CaroEffects.win();
+        }
+      } else {
+        playSound("defeat");
+
+        if (window.CaroEffects && typeof window.CaroEffects.defeat === "function") {
+          window.CaroEffects.defeat();
+        }
+      }
+    }
+  }
+
+  // ---------- VẼ BÀN CỜ ----------
+  function renderBoard(s) {
+    if (!boardEl || !Array.isArray(s.board)) return;
+
+    boardEl.innerHTML = "";
+
+    s.board.forEach((value, index) => {
+      const cell = document.createElement("button");
+
+      cell.type = "button";
+      cell.className = "cell";
+      cell.dataset.index = String(index);
+
+      // Quan trọng: CSS dùng data-piece để nhận biết X/O.
+      if (value === "X" || value === "O") {
+        cell.dataset.piece = value;
+        cell.classList.add(value === "X" ? "piece-x" : "piece-o");
+        cell.classList.add(value);
+      }
+
+      // Tạo quân cờ.
+      if (value === "X" || value === "O") {
+        const stone = document.createElement("span");
+        stone.className = "stone";
+        stone.textContent = value;
+        stone.setAttribute("aria-label", value === "X" ? "Quân chủ LIVE" : "Quân người chơi");
+        cell.appendChild(stone);
+      }
+
+      // Đánh dấu nước đi mới nhất.
+      if (Number(s.lastMove) === index) {
+        cell.classList.add("last-move");
+      }
+
+      // Chỉ người chơi đang được chọn mới được đánh quân O.
+      const isMyTurn =
+        username &&
+        s.activePlayer &&
+        sameName(s.activePlayer, username) &&
+        s.turn === "O" &&
+        !s.winner &&
+        !value;
+
+      cell.disabled = !isMyTurn;
+      cell.setAttribute("aria-label", value
+        ? `Ô ${index + 1}: quân ${value}`
+        : `Ô trống ${index + 1}`);
+
+      cell.addEventListener("click", () => {
+        if (!state || !socket.connected) {
+          showNotice("Mất kết nối. Vui lòng đợi kết nối lại.");
+          return;
+        }
+
+        if (state.winner) {
+          showNotice("Ván đấu đã kết thúc.");
+          return;
+        }
+
+        if (!state.activePlayer || !sameName(state.activePlayer, username)) {
+          showNotice("Bạn chưa được chủ LIVE chọn vào lượt chơi.");
+          return;
+        }
+
+        if (state.turn !== "O") {
+          showNotice("Chưa đến lượt bạn. Hãy chờ chủ LIVE đánh.");
+          return;
+        }
+
+        if (state.board[index]) return;
+
+        // Khóa ô ngay lập tức để tránh bấm liên tục.
+        cell.disabled = true;
+        socket.emit("viewer:move", { index });
+      });
+
+      boardEl.appendChild(cell);
     });
-
-    registered = true;
   }
 
-  function submitJoin() {
-    const name = usernameInput?.value?.trim() || "";
+  // ---------- NHẬN TRẠNG THÁI TỪ SERVER ----------
+  function render(s) {
+    if (!s || !Array.isArray(s.board)) return;
+
+    // Phải giữ trạng thái cũ trước khi ghi trạng thái mới.
+    // Nếu ghi đè trước, chương trình sẽ không phát hiện được quân mới.
+    const previousState = state;
+
+    detectChanges(previousState, s);
+
+    state = s;
+
+    renderInfo(s);
+    renderBoard(s);
+  }
+
+  // ---------- ĐĂNG KÝ NGƯỜI CHƠI ----------
+  function registerViewer() {
+    const name = String(usernameInput?.value || username || "").trim();
 
     if (!name) {
-      showNotice("Bạn hãy nhập tên trước nhé!");
+      showNotice("Vui lòng nhập tên người chơi.");
       usernameInput?.focus();
       return;
     }
 
     if (name.length > 24) {
-      showNotice("Tên không được dài quá 24 ký tự.");
+      showNotice("Tên người chơi tối đa 24 ký tự.");
       return;
     }
 
-    myName = name;
-    localStorage.setItem("caro_username", myName);
+    username = name;
+    registered = true;
+    saveUsername(name);
 
-    registerViewer();
-    showNotice("Đã gửi yêu cầu tham gia. Vui lòng chờ chủ LIVE duyệt!");
+    if (!socket.connected) {
+      showNotice("Đang kết nối máy chủ. Vui lòng đợi...");
+      return;
+    }
 
-    renderRegistration();
+    socket.emit("viewer:register", { username: name });
+    showNotice("Đã gửi yêu cầu tham gia. Vui lòng chờ chủ LIVE.");
   }
 
-  function renderRegistration() {
-    if (!joinSection) return;
-
-    const item = state ? getMyQueueItem(state) : null;
-    const active = state ? isMyGame(state) : false;
-
-    if (active) {
-      joinSection.hidden = true;
-      return;
-    }
-
-    if (item) {
-      joinSection.hidden = true;
-      return;
-    }
-
-    if (state?.winner) {
-      joinSection.hidden = true;
-      return;
-    }
-
-    joinSection.hidden = false;
-
-    if (usernameInput && myName) {
-      usernameInput.value = myName;
-    }
-  }
-
-  // ===== STATUS =====
-  function renderStatus(s) {
-    if (!statusEl) return;
-
-    if (s.winner) {
-      const winnerText = s.winner === "X"
-        ? "CHỦ LIVE đã chiến thắng!"
-        : "BẠN ĐÃ CHIẾN THẮNG!";
-
-      statusEl.textContent = winnerText;
-      return;
-    }
-
-    if (!s.activePlayer) {
-      statusEl.textContent = "Đang chờ chủ LIVE chọn người chơi...";
-      return;
-    }
-
-    const activeName = typeof s.activePlayer === "string"
-      ? s.activePlayer
-      : s.activePlayer.name;
-
-    if (!isMyGame(s)) {
-      statusEl.textContent = `Đang diễn ra trận đấu với ${activeName || "người chơi khác"}`;
-      return;
-    }
-
-    statusEl.textContent = s.turn === "O"
-      ? "ĐẾN LƯỢT BẠN ĐÁNH!"
-      : "Đang chờ chủ LIVE đánh...";
-  }
-
-  // ===== BOARD =====
-  function renderBoard(s) {
-    if (!boardEl || !Array.isArray(s.board)) return;
-
-    const fragment = document.createDocumentFragment();
-
-    const lastMove = s.lastMove ||
-      (Array.isArray(s.lastMoves) && s.lastMoves.length
-        ? s.lastMoves[s.lastMoves.length - 1]
-        : null);
-
-    const lastIndex = typeof lastMove === "number"
-      ? lastMove
-      : lastMove?.index;
-
-    s.board.forEach((value, index) => {
-      const cell = document.createElement("button");
-      cell.type = "button";
-      cell.className = "cell";
-      cell.dataset.index = String(index);
-
-      if (value === "X") {
-        cell.classList.add("x");
-        cell.textContent = "X";
-      } else if (value === "O") {
-        cell.classList.add("o");
-        cell.textContent = "O";
-      }
-
-      if (index === lastIndex) {
-        cell.classList.add("last-move");
-        cell.setAttribute("aria-label", "Nước đi mới nhất");
-      }
-
-      const canPlay =
-        isMyGame(s) &&
-        s.turn === "O" &&
-        !s.winner &&
-        !value &&
-        !pendingMove;
-
-      cell.disabled = !canPlay;
-      cell.addEventListener("click", () => sendMove(index));
-
-      fragment.appendChild(cell);
-    });
-
-    boardEl.replaceChildren(fragment);
-  }
-
-  function sendMove(index) {
-    if (!state || !isMyGame(state)) return;
-    if (state.turn !== "O" || state.winner || pendingMove) return;
-    if (state.board?.[index]) return;
-
-    pendingMove = true;
-
-    socket.emit("viewer:move", {
-      index,
-      username: myName
-    });
-
-    setTimeout(() => {
-      pendingMove = false;
-      if (state) renderBoard(state);
-    }, 1800);
-  }
-
-  // ===== SCORE =====
-  function renderScores(s) {
-    const hostScoreEl =
-      document.getElementById("hostScore") ||
-      document.querySelector(".host-score");
-
-    const viewerScoreEl =
-      document.getElementById("viewerScore") ||
-      document.querySelector(".viewer-score");
-
-    if (hostScoreEl) {
-      hostScoreEl.textContent = s.scores?.host ?? 0;
-    }
-
-    if (viewerScoreEl) {
-      viewerScoreEl.textContent = s.scores?.viewers ?? 0;
-    }
-  }
-
-  // ===== QUEUE / PLAYER INFO =====
-  function renderPlayerInfo(s) {
-    const opponentEl =
-      document.getElementById("opponent") ||
-      document.querySelector(".opponent");
-
-    if (!opponentEl) return;
-
-    if (!s.activePlayer) {
-      opponentEl.textContent = "Chưa có đối thủ";
-      return;
-    }
-
-    const name = typeof s.activePlayer === "string"
-      ? s.activePlayer
-      : s.activePlayer.name;
-
-    opponentEl.textContent = name || "Người chơi";
-  }
-
-  // ===== TIMER =====
-  function renderTimer(s) {
-    const timerEl =
-      document.getElementById("timer") ||
-      document.querySelector(".timer");
-
-    if (!timerEl) return;
-
-    if (s.winner || !s.activePlayer) {
-      timerEl.textContent = "--";
-      return;
-    }
-
-    if (s.turn === "O") {
-      timerEl.textContent = isMyGame(s)
-        ? "LƯỢT CỦA BẠN"
-        : "LƯỢT NGƯỜI XEM";
-    } else {
-      timerEl.textContent = "LƯỢT CHỦ LIVE";
-    }
-  }
-
-  // ===== REMATCH =====
-  function renderRematch(s) {
-    if (!rematchPanel) return;
-
-    if (!s.winner || !s.activePlayer || !isMyGame(s)) {
-      rematchPanel.hidden = true;
-      rematchPanel.innerHTML = "";
-      return;
-    }
-
-    rematchPanel.hidden = false;
-
-    const request = s.rematchRequest;
-    const viewerRequested = request === "viewer";
-    const hostRequested = request === "host";
-
-    if (viewerRequested) {
-      rematchPanel.innerHTML = `
-        <div class="rematch-content">
-          <strong>Đã gửi yêu cầu đấu lại!</strong>
-          <p>Đang chờ chủ LIVE xác nhận.</p>
-          <span class="rematch-wait">Vui lòng chờ...</span>
-        </div>
-      `;
-      return;
-    }
-
-    if (hostRequested) {
-      rematchPanel.innerHTML = `
-        <div class="rematch-content">
-          <strong>Chủ LIVE muốn đấu lại!</strong>
-          <p>Bạn có đồng ý chơi thêm một ván không?</p>
-          <button type="button" id="confirmRematch" class="rematch-button">
-            Đồng ý đấu lại
-          </button>
-        </div>
-      `;
-
-      document.getElementById("confirmRematch")
-        ?.addEventListener("click", () => {
-          socket.emit("viewer:rematch-confirm");
-          showNotice("Đã gửi xác nhận đấu lại!");
-        });
-
-      return;
-    }
-
-    rematchPanel.innerHTML = `
-      <div class="rematch-content">
-        <strong>Ván đấu đã kết thúc!</strong>
-        <p>Bạn có muốn đấu thêm một ván với chủ LIVE không?</p>
-        <button type="button" id="requestRematch" class="rematch-button">
-          Đấu lại
-        </button>
-      </div>
-    `;
-
-    document.getElementById("requestRematch")
-      ?.addEventListener("click", () => {
-        socket.emit("viewer:rematch-request");
-        showNotice("Đã gửi yêu cầu đấu lại!");
-      });
-  }
-
-  // ===== GAME EFFECTS =====
-  function checkGameEffects(s) {
-    const count = boardCount(s.board);
-
-    if (count > lastBoardCount) {
-      playSound("move");
-    }
-
-    lastBoardCount = count;
-
-    if (s.winner && s.winner !== lastWinner) {
-      if (s.winner === "O") {
-        playSound("win");
-        playEffect("win");
-      } else {
-        playSound("defeat");
-        playEffect("defeat");
-      }
-    }
-
-    if (!s.winner && lastWinner) {
-      lastBoardCount = count;
-    }
-
-    lastWinner = s.winner || null;
-  }
-
-  // ===== MAIN RENDER =====
-  function render(s) {
-    if (!s) return;
-
-    state = s;
-
-    checkGameEffects(s);
-    renderBoard(s);
-    renderStatus(s);
-    renderScores(s);
-    renderPlayerInfo(s);
-    renderTimer(s);
-    renderRegistration();
-    renderRematch(s);
-  }
-
-  // ===== EVENTS =====
   if (joinBtn) {
-    joinBtn.addEventListener("click", event => {
-      event.preventDefault();
-      submitJoin();
-    });
+    joinBtn.addEventListener("click", registerViewer);
   }
 
   if (usernameInput) {
+    usernameInput.value = getSavedUsername();
+
     usernameInput.addEventListener("keydown", event => {
       if (event.key === "Enter") {
         event.preventDefault();
-        submitJoin();
+        registerViewer();
       }
     });
   }
 
+  // ---------- SỰ KIỆN SOCKET ----------
   socket.on("connect", () => {
-    registered = false;
+    console.log("Caro LIVE đã kết nối:", socket.id);
 
-    if (myName) {
-      registerViewer();
+    if (registered && username) {
+      socket.emit("viewer:register", { username });
     }
 
-    showNotice("Đã kết nối phòng Caro LIVE.");
+    showNotice("Đã kết nối máy chủ.");
   });
 
-  socket.on("disconnect", () => {
-    registered = false;
-    showNotice("Mất kết nối. Đang thử kết nối lại...");
+  socket.on("state", render);
+
+  socket.on("notice", data => {
+    const message = typeof data === "string"
+      ? data
+      : data?.message || data?.text || "";
+
+    if (message) showNotice(message);
   });
 
-  socket.on("state", s => {
-    pendingMove = false;
-    render(s);
+  socket.on("disconnect", reason => {
+    console.warn("Caro LIVE mất kết nối:", reason);
+    showNotice("Mất kết nối máy chủ. Đang tự kết nối lại...");
   });
 
-  socket.on("notice", message => {
-    showNotice(
-      typeof message === "string"
-        ? message
-        : message?.message || "Có thông báo mới."
-    );
+  socket.on("connect_error", error => {
+    console.error("Lỗi kết nối:", error);
+    showNotice("Không kết nối được máy chủ. Kiểm tra mạng rồi thử lại.");
   });
 
-  socket.on("viewer:move:accepted", () => {
-    pendingMove = false;
-  });
+  // ---------- TẢI TRẠNG THÁI BAN ĐẦU ----------
+  async function loadInitialState() {
+    try {
+      const response = await fetch("/api/state", {
+        cache: "no-store"
+      });
 
-  socket.on("viewer:move:rejected", message => {
-    pendingMove = false;
+      if (!response.ok) {
+        throw new Error("Không tải được trạng thái phòng.");
+      }
 
-    showNotice(
-      typeof message === "string"
-        ? message
-        : message?.message || "Nước đi chưa được chấp nhận."
-    );
-
-    if (state) renderBoard(state);
-  });
-
-  socket.on("viewer:rematch:accepted", () => {
-    showNotice("Yêu cầu đấu lại đã được chấp nhận!");
-  });
-
-  socket.on("viewer:rematch:rejected", message => {
-    showNotice(
-      typeof message === "string"
-        ? message
-        : message?.message || "Yêu cầu đấu lại chưa được chấp nhận."
-    );
-  });
-
-  // ===== INITIAL LOAD =====
-  if (usernameInput && myName) {
-    usernameInput.value = myName;
+      const data = await response.json();
+      render(data);
+    } catch (error) {
+      console.warn("Chưa tải được trạng thái ban đầu:", error);
+    }
   }
 
-  fetch("/api/state")
-    .then(response => {
-      if (!response.ok) throw new Error("Không tải được trạng thái phòng");
-      return response.json();
-    })
-    .then(s => render(s))
-    .catch(() => {
-      showNotice("Đang chờ dữ liệu phòng Caro LIVE...");
-    });
+  // Tên đã lưu sẽ được dùng lại sau khi tải lại trang.
+  const savedName = getSavedUsername();
 
-  if (myName) {
-    registerViewer();
+  if (savedName) {
+    username = savedName;
+    registered = true;
+
+    if (usernameInput) {
+      usernameInput.value = savedName;
+    }
   }
 
+  loadInitialState();
+
+  console.log("Caro LIVE client.js đã khởi chạy.");
 })();
