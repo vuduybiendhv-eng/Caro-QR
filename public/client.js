@@ -1,9 +1,14 @@
 
 /* =========================================================
    CARO LIVE - CLIENT.JS
-   Viewer: tự đăng ký, bàn cờ 15x15, chat, đấu lại,
-   đồng bộ trạng thái và âm thanh.
-   ========================================================= */
+   Viewer:
+   - Tự đăng ký vào hàng chờ
+   - Bàn cờ 15x15
+   - Chat và đấu lại
+   - Đồng bộ trạng thái
+   - Âm thanh, hiệu ứng
+   - Emoji bay nổi trên bàn cờ
+========================================================= */
 
 (() => {
   "use strict";
@@ -21,7 +26,6 @@
     reconnectionDelayMax: 5000
   });
 
-  // Giao diện
   const $ = id => document.getElementById(id);
 
   const boardEl = $("board");
@@ -50,7 +54,6 @@
   const chatSend = $("chatSend");
   const chatNotice = $("chatNotice");
 
-  // Trạng thái
   let state = null;
   let username = "";
   let registered = false;
@@ -60,7 +63,10 @@
   let lastBoard = [];
   let pendingMove = false;
 
-  // Tiện ích
+  // ========================================================
+  // TIỆN ÍCH
+  // ========================================================
+
   function savedName() {
     try {
       return localStorage.getItem("caro_live_username") || "";
@@ -77,6 +83,7 @@
 
   function showNotice(message) {
     if (!noticeEl) return;
+
     noticeEl.textContent = String(message || "");
     noticeEl.classList.toggle("notice-hidden", !message);
   }
@@ -92,12 +99,18 @@
       String(b || "").trim().toLowerCase();
   }
 
-  function isMyTurn(s = state) {
+  function isActiveViewer(s = state) {
     return Boolean(
       s &&
       username &&
       s.activePlayer &&
-      sameName(s.activePlayer, username) &&
+      sameName(s.activePlayer, username)
+    );
+  }
+
+  function isMyTurn(s = state) {
+    return Boolean(
+      isActiveViewer(s) &&
       s.turn === "O" &&
       !s.winner
     );
@@ -105,10 +118,14 @@
 
   function playSound(name) {
     const sound = window.CaroSound;
+
     if (!sound || typeof sound[name] !== "function") return;
 
     try {
-      if (typeof sound.isEnabled !== "function" || sound.isEnabled()) {
+      if (
+        typeof sound.isEnabled !== "function" ||
+        sound.isEnabled()
+      ) {
         sound[name]();
       }
     } catch (error) {
@@ -116,12 +133,17 @@
     }
   }
 
-  // Hỏi tên lần đầu, không cần ô đăng ký trên giao diện.
+  // ========================================================
+  // ĐĂNG KÝ NGƯỜI XEM
+  // ========================================================
+
   function askUsername() {
     let name = savedName();
 
     if (!name) {
-      name = window.prompt("Nhập tên TikTok để vào phòng Caro LIVE:") || "";
+      name = window.prompt(
+        "Nhập tên TikTok để vào phòng Caro LIVE:"
+      ) || "";
     }
 
     name = String(name).trim().replace(/^@/, "");
@@ -157,19 +179,28 @@
     showNotice("Đang tham gia phòng chờ...");
   }
 
-  // Tạo 225 ô một lần duy nhất để tránh bàn cờ nhấp nháy.
+  // ========================================================
+  // BÀN CỜ 15x15
+  // ========================================================
+
   function createBoard() {
     if (!boardEl || cells.length) return;
 
     boardEl.innerHTML = "";
+
     const fragment = document.createDocumentFragment();
 
     for (let index = 0; index < 225; index++) {
       const cell = document.createElement("button");
+
       cell.type = "button";
       cell.className = "cell";
       cell.dataset.index = String(index);
-      cell.setAttribute("aria-label", `Ô trống ${index + 1}`);
+
+      cell.setAttribute(
+        "aria-label",
+        `Ô trống ${index + 1}`
+      );
 
       cell.addEventListener("click", () => makeMove(index));
 
@@ -182,7 +213,9 @@
 
   function makeMove(index) {
     if (!state || !socket.connected) {
-      showNotice("Mất kết nối máy chủ. Vui lòng đợi kết nối lại.");
+      showNotice(
+        "Mất kết nối máy chủ. Vui lòng đợi kết nối lại."
+      );
       return;
     }
 
@@ -192,16 +225,18 @@
     }
 
     if (!isMyTurn()) {
-      showNotice("Chưa đến lượt bạn hoặc bạn chưa được chọn đấu.");
+      showNotice(
+        "Chưa đến lượt bạn hoặc bạn chưa được chọn đấu."
+      );
       return;
     }
 
     if (state.board[index]) return;
     if (pendingMove) return;
 
-    // Chờ máy chủ xác nhận, không tự đặt quân trên bàn.
     pendingMove = true;
     updateBoardControls();
+
     socket.emit("viewer:move", { index });
   }
 
@@ -226,15 +261,19 @@
       if (!cell) return;
 
       const oldValue = cell.dataset.piece || "";
-      const newValue = value === "X" || value === "O" ? value : "";
+      const newValue =
+        value === "X" || value === "O" ? value : "";
 
-      // Chỉ thay nội dung khi quân cờ thực sự thay đổi.
       if (oldValue !== newValue) {
         cell.replaceChildren();
-        cell.classList.remove("piece-x", "piece-o", "X", "O");
+
+        cell.classList.remove(
+          "piece-x", "piece-o", "X", "O"
+        );
 
         if (newValue) {
           cell.dataset.piece = newValue;
+
           cell.classList.add(
             newValue === "X" ? "piece-x" : "piece-o",
             newValue
@@ -243,9 +282,12 @@
           const stone = document.createElement("span");
           stone.className = "stone";
           stone.textContent = newValue;
+
           stone.setAttribute(
             "aria-label",
-            newValue === "X" ? "Quân Chủ LIVE" : "Quân người chơi"
+            newValue === "X"
+              ? "Quân Chủ LIVE"
+              : "Quân người chơi"
           );
 
           cell.appendChild(stone);
@@ -272,12 +314,20 @@
     updateBoardControls();
   }
 
-  // Thông tin phòng, người chơi và điểm số.
+  // ========================================================
+  // THÔNG TIN VÀ ĐỒNG HỒ
+  // ========================================================
+
   function renderInfo(s) {
     setText(hostEl, s.host || "CHỦ LIVE");
-    setText(opponentEl, s.activePlayer || "Đang chờ người chơi");
+
+    setText(
+      opponentEl,
+      s.activePlayer || "Đang chờ người chơi"
+    );
 
     const scores = s.scores || {};
+
     setText(hostScoreEl, scores.host ?? scores.X ?? 0);
     setText(viewerScoreEl, scores.viewers ?? scores.O ?? 0);
 
@@ -301,28 +351,34 @@
     );
 
     setText(timerNumber, seconds);
-    setText(timerElFallback(), seconds);
+    setText($("timer"), seconds);
 
     setText(
       timerOwner,
-      s.turn === "X" ? "LƯỢT CHỦ LIVE" : "LƯỢT NGƯỜI CHƠI"
+      s.turn === "X"
+        ? "LƯỢT CHỦ LIVE"
+        : "LƯỢT NGƯỜI CHƠI"
     );
 
     setText(
       timerMessage,
-      s.winner ? "Ván đấu đã kết thúc" : "Thời gian lượt đánh"
+      s.winner
+        ? "Ván đấu đã kết thúc"
+        : "Thời gian lượt đánh"
     );
 
     if (timerPanel) {
-      timerPanel.classList.toggle("timer-ended", Boolean(s.winner));
+      timerPanel.classList.toggle(
+        "timer-ended",
+        Boolean(s.winner)
+      );
     }
   }
 
-  function timerElFallback() {
-    return $("timer");
-  }
+  // ========================================================
+  // ÂM THANH VÀ HIỆU ỨNG
+  // ========================================================
 
-  // Âm thanh và hiệu ứng chỉ chạy khi có thay đổi thật.
   function detectChanges(previous, current) {
     if (!previous) return;
 
@@ -343,7 +399,6 @@
     if (addedPiece) {
       pendingMove = false;
       playSound("move");
-
       window.CaroEffects?.move?.();
     }
 
@@ -358,7 +413,10 @@
     }
   }
 
-  // Đấu lại
+  // ========================================================
+  // ĐẤU LẠI
+  // ========================================================
+
   function renderRematch(s) {
     if (!rematchPanel || !rematchBtn) return;
 
@@ -370,15 +428,29 @@
     if (!ended) return;
 
     if (request === "host") {
-      setText(rematchMessage, "Chủ LIVE muốn đấu lại. Bạn đồng ý chứ?");
+      setText(
+        rematchMessage,
+        "Chủ LIVE muốn đấu lại. Bạn đồng ý chứ?"
+      );
+
       setText(rematchBtn, "ĐỒNG Ý ĐẤU LẠI");
       rematchBtn.disabled = false;
+
     } else if (request === "viewer") {
-      setText(rematchMessage, "Đã gửi yêu cầu. Đang chờ Chủ LIVE...");
+      setText(
+        rematchMessage,
+        "Đã gửi yêu cầu. Đang chờ Chủ LIVE..."
+      );
+
       setText(rematchBtn, "ĐÃ GỬI YÊU CẦU");
       rematchBtn.disabled = true;
+
     } else {
-      setText(rematchMessage, "Bạn có muốn chơi thêm ván nữa không?");
+      setText(
+        rematchMessage,
+        "Bạn có muốn chơi thêm ván nữa không?"
+      );
+
       setText(rematchBtn, "ĐẤU LẠI");
       rematchBtn.disabled = false;
     }
@@ -390,16 +462,29 @@
 
       if (state.rematchRequest === "host") {
         socket.emit("viewer:rematch-confirm");
-        setText(rematchMessage, "Đang xác nhận đấu lại...");
+
+        setText(
+          rematchMessage,
+          "Đang xác nhận đấu lại..."
+        );
+
       } else if (!state.rematchRequest) {
         socket.emit("viewer:rematch-request");
-        setText(rematchMessage, "Đã gửi yêu cầu đấu lại...");
+
+        setText(
+          rematchMessage,
+          "Đã gửi yêu cầu đấu lại..."
+        );
+
         rematchBtn.disabled = true;
       }
     });
   }
 
-  // Chat
+  // ========================================================
+  // CHAT
+  // ========================================================
+
   function addChatMessage(data) {
     if (!chatMessages) return;
 
@@ -445,30 +530,203 @@
       return;
     }
 
-    if (!state?.activePlayer || !sameName(state.activePlayer, username)) {
-      setText(chatNotice, "Chỉ người đang đấu mới được nhắn tin.");
+    if (
+      !state?.activePlayer ||
+      !sameName(state.activePlayer, username)
+    ) {
+      setText(
+        chatNotice,
+        "Chỉ người đang đấu mới được nhắn tin."
+      );
       return;
     }
 
     socket.emit("chat:send", { message });
+
     chatInput.value = "";
     setText(chatNotice, "");
   }
 
-  if (chatSend) {
-    chatSend.addEventListener("click", sendChat);
-  }
+  chatSend?.addEventListener("click", sendChat);
 
-  if (chatInput) {
-    chatInput.addEventListener("keydown", event => {
-      if (event.key === "Enter") {
-        event.preventDefault();
-        sendChat();
+  chatInput?.addEventListener("keydown", event => {
+    if (event.key === "Enter") {
+      event.preventDefault();
+      sendChat();
+    }
+  });
+
+  // ========================================================
+  // EMOJI BAY NỔI
+  // ========================================================
+
+  const reactionList = [
+    "❤️", "😂", "😍", "🔥", "👏",
+    "👍", "😮", "😭", "🤣", "🎉",
+    "💪", "🥰", "💖", "⭐", "😎"
+  ];
+
+  function installReactionAnimation() {
+    if ($("caroReactionStyle")) return;
+
+    const style = document.createElement("style");
+    style.id = "caroReactionStyle";
+
+    style.textContent = `
+      @keyframes caroReactionFloat {
+        0% {
+          opacity: 0;
+          transform: translate(-50%, 15px)
+                     scale(.6) rotate(-10deg);
+        }
+        15% {
+          opacity: 1;
+        }
+        70% {
+          opacity: 1;
+          transform: translate(-50%, -65px)
+                     scale(1.2) rotate(10deg);
+        }
+        100% {
+          opacity: 0;
+          transform: translate(-50%, -110px)
+                     scale(.8) rotate(-8deg);
+        }
       }
-    });
+
+      #reactionToolbar {
+        display: flex;
+        flex-wrap: wrap;
+        justify-content: center;
+        gap: 7px;
+        padding: 10px 4px;
+      }
+
+      #reactionToolbar button {
+        min-width: 38px;
+        min-height: 38px;
+        padding: 4px;
+        border-radius: 12px;
+        font-size: 23px;
+        cursor: pointer;
+        touch-action: manipulation;
+      }
+
+      #reactionToolbar button:disabled {
+        opacity: .4;
+        cursor: not-allowed;
+      }
+
+      #reactionOverlay {
+        position: absolute;
+        inset: 0;
+        overflow: hidden;
+        pointer-events: none;
+        z-index: 50;
+      }
+    `;
+
+    document.head.appendChild(style);
   }
 
-  // Nhận trạng thái máy chủ.
+  function setupReactions() {
+    if (!boardEl || $("reactionToolbar")) return;
+
+    boardEl.style.position = "relative";
+    boardEl.style.overflow = "hidden";
+
+    const overlay = document.createElement("div");
+    overlay.id = "reactionOverlay";
+    overlay.setAttribute("aria-hidden", "true");
+
+    // Lớp hiệu ứng không nằm trong lưới 225 ô.
+    const boardContainer = boardEl.parentElement;
+
+    if (!boardContainer) return;
+
+    boardContainer.style.position = "relative";
+
+    boardContainer.appendChild(overlay);
+
+    const toolbar = document.createElement("div");
+    toolbar.id = "reactionToolbar";
+
+    reactionList.forEach(emoji => {
+      const button = document.createElement("button");
+
+      button.type = "button";
+      button.textContent = emoji;
+      button.title = "Gửi biểu cảm " + emoji;
+      button.setAttribute("aria-label", "Gửi emoji " + emoji);
+
+      button.addEventListener("click", () => {
+        if (
+          !registered ||
+          !isActiveViewer() ||
+          state?.winner ||
+          !socket.connected
+        ) {
+          return;
+        }
+
+        socket.emit("reaction:send", {
+          emoji,
+          x: 15 + Math.random() * 70,
+          y: 35 + Math.random() * 35
+        });
+      });
+
+      toolbar.appendChild(button);
+    });
+
+    boardContainer.appendChild(toolbar);
+  }
+
+  function showFloatingReaction(data) {
+    const overlay = $("reactionOverlay");
+
+    if (
+      !overlay ||
+      !data ||
+      !reactionList.includes(data.emoji)
+    ) return;
+
+    const item = document.createElement("span");
+    item.textContent = data.emoji;
+
+    const x = Number.isFinite(Number(data.x))
+      ? Math.max(10, Math.min(90, Number(data.x)))
+      : 50;
+
+    const y = Number.isFinite(Number(data.y))
+      ? Math.max(10, Math.min(90, Number(data.y)))
+      : 50;
+
+    item.style.cssText = `
+      position: absolute;
+      left: ${x}%;
+      top: ${y}%;
+      font-size: clamp(25px, 5vw, 42px);
+      pointer-events: none;
+      transform: translate(-50%, 0);
+      animation: caroReactionFloat 2.2s ease-out forwards;
+      filter: drop-shadow(0 3px 5px rgba(0,0,0,.35));
+      will-change: transform, opacity;
+    `;
+
+    overlay.appendChild(item);
+
+    setTimeout(() => {
+      item.remove();
+    }, 2300);
+  }
+
+  socket.on("reaction:show", showFloatingReaction);
+
+  // ========================================================
+  // NHẬN TRẠNG THÁI
+  // ========================================================
+
   function render(s) {
     if (!s || !Array.isArray(s.board)) return;
 
@@ -495,7 +753,10 @@
     renderRematch(s);
   }
 
-  // Sự kiện kết nối
+  // ========================================================
+  // SOCKET EVENTS
+  // ========================================================
+
   socket.on("connect", () => {
     console.log("Caro LIVE đã kết nối:", socket.id);
 
@@ -529,7 +790,8 @@
     updateBoardControls();
 
     showNotice(
-      data?.message || "Nước đi chưa được chấp nhận. Vui lòng thử lại."
+      data?.message ||
+      "Nước đi chưa được chấp nhận. Vui lòng thử lại."
     );
   });
 
@@ -546,29 +808,43 @@
   socket.on("chat:error", data => {
     setText(
       chatNotice,
-      data?.message || data?.text || "Không gửi được tin nhắn."
+      typeof data === "string"
+        ? data
+        : data?.message ||
+          data?.text ||
+          "Không gửi được tin nhắn."
     );
   });
 
   socket.on("disconnect", reason => {
     pendingMove = false;
+
     console.warn("Mất kết nối:", reason);
+
     showNotice("Mất kết nối. Đang tự kết nối lại...");
   });
 
   socket.on("connect_error", error => {
     console.error("Lỗi kết nối:", error);
-    showNotice("Không kết nối được máy chủ. Kiểm tra mạng.");
+
+    showNotice(
+      "Không kết nối được máy chủ. Kiểm tra mạng."
+    );
   });
 
-  // Tải trạng thái ban đầu.
+  // ========================================================
+  // TẢI TRẠNG THÁI BAN ĐẦU
+  // ========================================================
+
   async function loadInitialState() {
     try {
       const response = await fetch("/api/state", {
         cache: "no-store"
       });
 
-      if (!response.ok) throw new Error("Không tải được trạng thái.");
+      if (!response.ok) {
+        throw new Error("Không tải được trạng thái.");
+      }
 
       render(await response.json());
     } catch (error) {
@@ -576,10 +852,7 @@
     }
   }
 
-  // Tương thích giao diện cũ nếu vẫn còn ô đăng ký.
-  if (joinBtn) {
-    joinBtn.addEventListener("click", registerViewer);
-  }
+  joinBtn?.addEventListener("click", registerViewer);
 
   if (usernameInput) {
     usernameInput.value = savedName();
@@ -596,7 +869,10 @@
   registered = Boolean(username);
 
   createBoard();
+  installReactionAnimation();
+  setupReactions();
   loadInitialState();
 
   console.log("Caro LIVE client.js đã khởi chạy.");
+
 })();
