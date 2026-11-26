@@ -1942,3 +1942,172 @@ footer {
 .rematch-panel .rematch-secondary {
   background: #fff2d8;
 }
+
+/* =========================================
+   CARO LIVE - FIX GIAO DIEN NANG CAP
+   ========================================= */
+
+/* Không để hoa hoặc hiệu ứng che thao tác bàn cờ */
+#celebrationCanvas {
+  pointer-events: none !important;
+}
+
+/* Đảm bảo quân cờ hiển thị rõ */
+#board .cell {
+  position: relative;
+  overflow: hidden;
+}
+
+#board .cell .stone {
+  z-index: 2;
+}
+
+/* Nước đi mới nhất */
+#board .cell.last-move {
+  outline: 3px solid #fff06b !important;
+  outline-offset: -3px;
+  z-index: 5;
+  box-shadow:
+    inset 0 0 0 2px #d00020,
+    0 0 12px rgba(255, 227, 110, .95) !important;
+}
+
+#board .cell.last-move::after {
+  content: "MỚI";
+  position: absolute;
+  top: 1px;
+  right: 1px;
+  z-index: 8;
+  padding: 1px 3px;
+  border-radius: 4px;
+  background: #8b1b12;
+  color: #fff;
+  font-size: 7px;
+  font-weight: 900;
+  pointer-events: none;
+}
+
+/* =========================================
+   KHU VỰC ĐẤU LẠI
+   ========================================= */
+
+.rematch-panel {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  width: 100%;
+  margin: 12px auto;
+  padding: 16px;
+  border: 3px solid #f4c85c;
+  border-radius: 20px;
+  background: linear-gradient(145deg, #884719, #542b19);
+  color: #fff2d0;
+  text-align: center;
+  box-shadow: 0 8px 22px rgba(35, 15, 5, .28);
+}
+
+/* Rất quan trọng: ẩn panel khi chưa đến lúc đấu lại */
+.rematch-panel[hidden] {
+  display: none !important;
+}
+
+.rematch-content {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 9px;
+}
+
+.rematch-content strong {
+  color: #ffe39a;
+  font-size: clamp(17px, 4vw, 22px);
+  font-weight: 900;
+}
+
+.rematch-content p {
+  margin: 0;
+  color: #fff2d8;
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+.rematch-button,
+.rematch-panel button {
+  min-width: 180px;
+  min-height: 46px;
+  padding: 11px 20px;
+  border: 2px solid #fff0b5;
+  border-radius: 14px;
+  background: linear-gradient(135deg, #ffe39a, #eca638);
+  color: #5b3217;
+  font-size: 15px;
+  font-weight: 900;
+  box-shadow: 0 4px 10px rgba(0, 0, 0, .22);
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.rematch-button:active,
+.rematch-panel button:active {
+  transform: scale(.97);
+}
+
+.rematch-wait {
+  color: #ffe39a;
+  font-size: 13px;
+  font-weight: 800;
+  animation: rematchPulse 1s ease-in-out infinite alternate;
+}
+
+@keyframes rematchPulse {
+  from { opacity: .55; }
+  to { opacity: 1; }
+}
+
+/* =========================================
+   TRẠNG THÁI NƯỚC ĐI
+   ========================================= */
+
+#status {
+  overflow-wrap: anywhere;
+  line-height: 1.4;
+}
+
+/* =========================================
+   MOBILE ANDROID
+   ========================================= */
+
+@media (max-width: 650px) {
+  .rematch-panel {
+    margin: 8px auto;
+    padding: 12px;
+    border-width: 2px;
+    border-radius: 15px;
+  }
+
+  .rematch-button,
+  .rematch-panel button {
+    width: 100%;
+    max-width: 280px;
+    min-height: 46px;
+    font-size: 14px;
+  }
+
+  .rematch-content p {
+    font-size: 13px;
+  }
+
+  #board .cell.last-move::after {
+    font-size: 6px;
+    padding: 1px 2px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .rematch-wait {
+    animation: none;
+  }
+}
