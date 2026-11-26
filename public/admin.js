@@ -1,50 +1,161 @@
 
+/* =========================================================
+   CARO LIVE - ADMIN.JS
+   Chủ LIVE: quản lý hàng chờ, đánh X, chat, đấu lại,
+   đồng hồ, điểm số và âm thanh.
+   ========================================================= */
+
 (() => {
   "use strict";
 
-  const socket = io();
+  if (typeof window.io !== "function") {
+    console.error("Không tải được Socket.IO.");
+    return;
+  }
 
-  const boardEl = document.getElementById("board");
+  const socket = window.io({
+    transports: ["websocket", "polling"],
+    reconnection: true,
+    reconnectionAttempts: Infinity
+  });
+
+  const $ = id => document.getElementById(id);
+
+  const boardEl = $("board");
+  const pinInput = $("pin");
 
   let state = null;
   let serverClockOffset = 0;
-  let lastBoardCount = 0;
-  let lastWinner = null;
+  let hostAuthenticated = false;
+  let cells = [];
+  let chatMessages = [];
+  let lastRoundId = null;
 
-  const pin = () =>
-    document.getElementById("pin")?.value || "";
+  // ========================================================
+  // TIỆN ÍCH
+  // ========================================================
 
-  // =========================
-  // TẠO KHU VỰC ĐẤU LẠI
-  // =========================
+  function setText(id, value) {
+    const el = $(id);
+    if (el) el.textContent = String(value ?? "");
+  }
 
-  let rematchPanel = document.getElementById("rematchPanel");
+  function escapeHTML(value) {
+    return String(value ?? "").replace(/[&<>"']/g, char => ({
+      "&": "&amp;",
+      "<": "&lt;",
+      ">": "&gt;",
+      '"': "&quot;",
+      "'": "&#039;"
+    })[char]);
+  }
 
-  if (!rematchPanel) {
-    rematchPanel = document.createElement("section");
-    rematchPanel.id = "rematchPanel";
-    rematchPanel.className = "rematch-panel";
+  function getPin() {
+    return String(pinInput?.value || "").trim();
+  }
 
-    const statusEl = document.getElementById("status");
+  function showMessage(message) {
+    const status = $("status");
+    if (status) status.textContent = message;
+  }
 
-    if (statusEl?.parentNode) {
-      statusEl.parentNode.insertBefore(
-        rematchPanel,
-        statusEl.nextSibling
-      );
-    } else if (boardEl?.parentNode) {
-      boardEl.parentNode.insertBefore(
-        rematchPanel,
-        boardEl.nextSibling
-      );
+  // ========================================================
+  // GỬI YÊU CẦU ADMIN
+  // ========================================================
+
+  async function post(path, body = {}) {
+    const currentPin = getPin();
+
+    if (!currentPin) {
+      alert("Vui lòng nhập Admin PIN.");
+      pinInput?.focus();
+      return { ok: false };
+    }
+
+    try {
+      const response = await fetch(path, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "x-admin-pin": currentPin
+        },
+        body: JSON.stringify(body),
+        cache: "no-store"
+      });
+
+      let data = {};
+
+      try {
+        data = await response.json();
+      } catch {
+        data = {};
+      }
+
+      if (!response.ok || data.ok === false) {
+        alert(data.error || "Yêu cầu không thành công.");
+        return { ok: false };
+      }
+
+      return { ...data, ok: true };
+    } catch (error) {
+      console.error("Lỗi gửi yêu cầu:", error);
+      alert("Không kết nối được máy chủ Caro LIVE.");
+      return { ok: false };
     }
   }
 
-  rematchPanel.hidden = true;
+  // ========================================================
+  // XÁC THỰC CHỦ LIVE QUA SOCKET
+  // ========================================================
 
-  // =========================
-  // HIỆU ỨNG VÀ ÂM THANH
-  // =========================
+  function authenticateHost() {
+    const currentPin = getPin();
+
+    if (!currentPin || !socket.connected) return;
+
+    socket.emit("host:authenticate", {
+      pin: currentPin
+    });
+  }
+
+  socket.on("host:authenticated", () => {
+    hostAuthenticated = true;
+    renderChat();
+    console.log("Chủ LIVE đã xác thực chat.");
+  });
+
+  socket.on("host:auth-error", message => {
+    hostAuthenticated = false;
+    console.warn("Xác thực chủ LIVE thất bại:", message);
+  });
+
+  socket.on("connect", () => {
+    console.log("Admin đã kết nối máy chủ.");
+    authenticateHost();
+
+    if (state) {
+      renderBoard(state);
+    }
+  });
+
+  socket.on("disconnect", () => {
+    hostAuthenticated = false;
+    showMessage("Mất kết nối máy chủ. Đang kết nối lại...");
+    renderChat();
+  });
+
+  socket.on("connect_error", error => {
+    console.warn("Socket lỗi:", error.message);
+  });
+
+  pinInput?.addEventListener("change", authenticateHost);
+  pinInput?.addEventListener("keydown", event => {
+    if (event.key === "Enter") authenticateHost();
+  });
+
+  // ========================================================
+  // ÂM THANH VÀ HIỆU ỨNG
+  // ========================================================
 
   function playEffect(name) {
     try {
@@ -59,7 +170,7 @@
         sound[name]();
       }
     } catch (error) {
-      console.warn("Không chạy được hiệu ứng:", name, error);
+      console.warn("Lỗi hiệu ứng:", name, error);
     }
   }
 
@@ -69,191 +180,51 @@
     const oldCount = previous.board.filter(Boolean).length;
     const newCount = current.board.filter(Boolean).length;
 
+    // Phát âm thanh khi thực sự có thêm quân.
     if (newCount > oldCount) {
       playEffect("move");
     }
 
+    // Tránh phát lại âm thanh khi server gửi trạng thái mỗi giây.
     if (!previous.winner && current.winner) {
-      playEffect(current.winner === "X" ? "win" : "defeat");
+      if (current.winner === "X") {
+        playEffect("win");
+      } else if (current.winner === "O") {
+        playEffect("defeat");
+      }
     }
   }
 
-  // =========================
-  // GỬI YÊU CẦU ĐẾN SERVER
-  // =========================
+  // ========================================================
+  // BÀN CỜ - TẠO MỘT LẦN, KHÔNG NHẤP NHÁY
+  // ========================================================
 
-  async function post(path, body = {}) {
-    try {
-      const response = await fetch(path, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "x-admin-pin": pin()
-        },
-        body: JSON.stringify(body)
+  function createBoard() {
+    if (!boardEl) return;
+
+    boardEl.replaceChildren();
+    cells = [];
+
+    const fragment = document.createDocumentFragment();
+
+    for (let index = 0; index < 225; index++) {
+      const cell = document.createElement("button");
+
+      cell.type = "button";
+      cell.className = "cell";
+      cell.dataset.index = String(index);
+      cell.disabled = true;
+
+      cell.addEventListener("click", () => {
+        hostMove(index);
       });
 
-      const data = await response.json();
-
-      if (!response.ok || data.ok === false) {
-        alert(data.error || "Có lỗi xảy ra.");
-        return { ok: false };
-      }
-
-      return data;
-    } catch (error) {
-      console.error(error);
-      alert("Không kết nối được máy chủ Caro LIVE.");
-      return { ok: false };
+      cells.push(cell);
+      fragment.appendChild(cell);
     }
+
+    boardEl.appendChild(fragment);
   }
-
-  function createButton(label, action, className = "") {
-    const button = document.createElement("button");
-
-    button.type = "button";
-    button.textContent = label;
-
-    if (className) {
-      button.className = className;
-    }
-
-    button.addEventListener("click", action);
-
-    return button;
-  }
-
-  // =========================
-  // ĐỒNG HỒ CÁT
-  // =========================
-
-  function renderTimer() {
-    const panel = document.getElementById("timerPanel");
-    const owner = document.getElementById("timerOwner");
-    const number = document.getElementById("timerNumber");
-    const message = document.getElementById("timerMessage");
-    const topSand = document.getElementById("topSand");
-    const bottomSand = document.getElementById("bottomSand");
-    const stream = document.getElementById("sandStream");
-
-    if (!panel || !number || !state) return;
-
-    const s = state;
-    const deadline = Number(s.turnDeadline);
-
-    panel.classList.remove(
-      "timer-host",
-      "timer-viewer",
-      "timer-idle",
-      "timer-warning",
-      "timer-finished"
-    );
-
-    if (
-      s.winner ||
-      !Number.isFinite(deadline) ||
-      deadline <= 0
-    ) {
-      panel.classList.add("timer-idle");
-
-      if (s.winner) {
-        if (owner) {
-          owner.textContent = "🏁 VÁN ĐẤU ĐÃ KẾT THÚC";
-        }
-
-        number.textContent = "0";
-
-        if (message) {
-          message.textContent =
-            s.winner === "X"
-              ? "Chủ LIVE chiến thắng!"
-              : "Người chơi chiến thắng!";
-        }
-      } else {
-        if (owner) {
-          owner.textContent = "⏳ ĐANG CHỜ LƯỢT CHƠI";
-        }
-
-        number.textContent = "30";
-
-        if (message) {
-          message.textContent = "Chờ bắt đầu trận đấu";
-        }
-      }
-
-      if (topSand) {
-        topSand.style.transform = "scaleY(1)";
-      }
-
-      if (bottomSand) {
-        bottomSand.style.transform = "scaleY(0.05)";
-      }
-
-      if (stream) {
-        stream.style.opacity = "0";
-      }
-
-      return;
-    }
-
-    const isHostTurn = s.turn === "X";
-
-    panel.classList.add(
-      isHostTurn ? "timer-host" : "timer-viewer"
-    );
-
-    if (owner) {
-      owner.textContent = isHostTurn
-        ? "❌ LƯỢT CHỦ LIVE (X)"
-        : `⭕ LƯỢT @${s.activePlayer || "NGƯỜI CHƠI"} (O)`;
-    }
-
-    const serverNow = Date.now() + serverClockOffset;
-    const remainingMs = Math.max(0, deadline - serverNow);
-    const seconds = Math.ceil(remainingMs / 1000);
-
-    const totalTime =
-      (Number(s.turnTime) || 30) * 1000;
-
-    const progress = Math.max(
-      0,
-      Math.min(1, remainingMs / totalTime)
-    );
-
-    number.textContent = String(seconds);
-
-    if (message) {
-      message.textContent = seconds <= 5
-        ? "⚠️ Nhanh tay! Sắp hết giờ!"
-        : isHostTurn
-          ? "Chủ LIVE đang có lượt đánh"
-          : `Đang chờ @${s.activePlayer || "người chơi"} đánh`;
-    }
-
-    if (seconds <= 5) {
-      panel.classList.add("timer-warning");
-    }
-
-    if (seconds <= 0) {
-      panel.classList.add("timer-finished");
-    }
-
-    if (topSand) {
-      topSand.style.transform = `scaleY(${progress})`;
-    }
-
-    if (bottomSand) {
-      bottomSand.style.transform = `scaleY(${1 - progress})`;
-    }
-
-    if (stream) {
-      stream.style.opacity = seconds > 0 ? "1" : "0";
-    }
-  }
-
-  // =========================
-  // XÁC ĐỊNH NƯỚC ĐI MỚI NHẤT
-  // =========================
 
   function getLastMoveIndex(s) {
     if (typeof s.lastMove === "number") {
@@ -277,155 +248,130 @@
     return -1;
   }
 
-  // =========================
-  // VẼ BÀN CỜ
-  // =========================
+  async function hostMove(index) {
+    if (!state || !socket.connected) {
+      showMessage("Đang mất kết nối máy chủ.");
+      return;
+    }
+
+    if (
+      state.winner ||
+      !state.activePlayer ||
+      state.turn !== "X" ||
+      state.board[index]
+    ) {
+      return;
+    }
+
+    const cell = cells[index];
+    if (cell) cell.disabled = true;
+
+    const result = await post("/api/admin/move", { index });
+
+    if (!result.ok && state) {
+      renderBoard(state);
+    }
+  }
 
   function renderBoard(s) {
     if (!boardEl || !Array.isArray(s.board)) return;
 
-    const fragment = document.createDocumentFragment();
+    if (cells.length !== s.board.length) {
+      createBoard();
+    }
+
     const lastIndex = getLastMoveIndex(s);
 
     s.board.forEach((value, index) => {
-      const cell = document.createElement("button");
+      const cell = cells[index];
+      if (!cell) return;
 
-      cell.type = "button";
-      cell.className = "cell";
+      const oldValue = cell.dataset.piece || "";
 
-      if (value === "X") {
-        cell.classList.add("X", "piece-x");
+      if (oldValue !== value) {
+        cell.replaceChildren();
+        cell.className = "cell";
+        delete cell.dataset.piece;
+
+        if (value === "X" || value === "O") {
+          cell.dataset.piece = value;
+          cell.classList.add(
+            value,
+            value === "X" ? "piece-x" : "piece-o"
+          );
+
+          const stone = document.createElement("span");
+          stone.className = "stone";
+          stone.setAttribute("aria-hidden", "true");
+          cell.appendChild(stone);
+        }
       }
 
-      if (value === "O") {
-        cell.classList.add("O", "piece-o");
-      }
+      cell.classList.toggle("last-move", index === lastIndex);
 
-      if (value === "X" || value === "O") {
-        const stone = document.createElement("span");
-
-        stone.className = "stone";
-        stone.setAttribute("aria-hidden", "true");
-
-        cell.appendChild(stone);
-      }
-
-      // Đánh dấu nước đi mới nhất
-      if (index === lastIndex) {
-        cell.classList.add("last-move");
-        cell.title = "Nước đi mới nhất";
-      }
-
-      const canHostPlay =
+      const canPlay =
         !value &&
         !s.winner &&
-        s.activePlayer &&
+        Boolean(s.activePlayer) &&
         s.turn === "X";
 
-      cell.disabled = !canHostPlay;
+      cell.disabled = !canPlay;
 
-      cell.addEventListener("click", async () => {
-        if (
-          !state ||
-          state.board[index] ||
-          state.winner ||
-          !state.activePlayer ||
-          state.turn !== "X"
-        ) {
-          return;
-        }
-
-        cell.disabled = true;
-
-        await post("/api/admin/move", { index });
-      });
-
-      fragment.appendChild(cell);
-    });
-
-    boardEl.replaceChildren(fragment);
-  }
-
-  // =========================
-  // DANH SÁCH CHỜ DUYỆT
-  // =========================
-
-  function renderPendingQueue(s) {
-    const pending = document.getElementById("pendingQueue");
-    if (!pending) return;
-
-    pending.innerHTML = "";
-
-    const players = s.pendingQueue || [];
-
-    if (!players.length) {
-      pending.textContent = "Chưa có yêu cầu đăng ký mới.";
-      return;
-    }
-
-    players.forEach(player => {
-      const row = document.createElement("div");
-      row.className = "queueitem";
-
-      const username = player.username || player.name || "";
-
-      const label = document.createElement("span");
-      label.textContent = "@" + username + " · Chờ duyệt";
-
-      const approve = createButton("✓ Duyệt", async () => {
-        const result = await post(
-          "/api/admin/approve-player",
-          { username }
-        );
-
-        if (result.ok) {
-          alert("Đã duyệt @" + username);
-        }
-      });
-
-      const reject = createButton("✕ Từ chối", async () => {
-        if (!confirm("Từ chối @" + username + "?")) return;
-
-        await post("/api/admin/reject-player", {
-          username
-        });
-      });
-
-      row.append(label, approve, reject);
-      pending.appendChild(row);
+      cell.setAttribute(
+        "aria-label",
+        value
+          ? `Ô ${index + 1}: quân ${value}`
+          : `Ô trống ${index + 1}`
+      );
     });
   }
 
-  // =========================
-  // DANH SÁCH ĐÃ DUYỆT
-  // =========================
+  // ========================================================
+  // HÀNG CHỜ NGƯỜI CHƠI
+  // ========================================================
+
+  function getPlayerName(player) {
+    if (typeof player === "string") return player;
+
+    return String(
+      player?.username ||
+      player?.name ||
+      ""
+    );
+  }
 
   function renderQueue(s) {
-    const queue = document.getElementById("queue");
+    const queue = $("queue");
     if (!queue) return;
 
-    queue.innerHTML = "";
+    queue.replaceChildren();
 
-    const players = s.queue || [];
+    const players = Array.isArray(s.queue) ? s.queue : [];
 
     if (!players.length) {
-      queue.textContent = "Chưa có người chơi được duyệt.";
+      queue.textContent = "Chưa có người chơi trong hàng chờ.";
       return;
     }
 
     players.forEach(player => {
+      const username = getPlayerName(player);
+      if (!username) return;
+
       const row = document.createElement("div");
       row.className = "queueitem";
-
-      const username = player.username || player.name || "";
 
       const label = document.createElement("span");
       label.textContent = "@" + username;
 
-      const button = createButton("Chọn đấu", async () => {
-        await post("/api/admin/select", {
-          username
-        });
+      const button = document.createElement("button");
+      button.type = "button";
+      button.textContent = "Chọn đấu";
+      button.disabled = Boolean(s.winner === false && false);
+
+      button.addEventListener("click", async () => {
+        if (!confirm(`Chọn @${username} vào đấu?`)) return;
+
+        await post("/api/admin/select", { username });
       });
 
       row.append(label, button);
@@ -433,133 +379,473 @@
     });
   }
 
-  // =========================
-  // THÔNG TIN VÀ ĐIỂM
-  // =========================
+  // ========================================================
+  // THÔNG TIN, ĐIỂM SỐ
+  // ========================================================
 
   function renderInfo(s) {
-    const status = document.getElementById("status");
-
-    if (status) {
-      if (s.winner) {
-        status.textContent =
-          s.winner === "X"
-            ? "Kết quả: Chủ LIVE thắng!"
-            : `Kết quả: @${s.activePlayer} thắng!`;
-      } else if (!s.activePlayer) {
-        status.textContent = "Đang chờ chủ LIVE chọn người chơi.";
-      } else {
-        status.textContent =
-          s.turn === "X"
-            ? "Đến lượt chủ LIVE (X)"
-            : `Đến lượt @${s.activePlayer || "người xem"} (O)`;
-      }
+    if (s.winner === "X") {
+      showMessage("Kết quả: Chủ LIVE chiến thắng!");
+    } else if (s.winner === "O") {
+      showMessage(`Kết quả: @${s.activePlayer || "người chơi"} chiến thắng!`);
+    } else if (s.winner === "D") {
+      showMessage("Ván đấu hòa!");
+    } else if (!s.activePlayer) {
+      showMessage("Đang chờ chủ LIVE chọn người chơi.");
+    } else if (s.turn === "X") {
+      showMessage("Đến lượt chủ LIVE đánh quân X.");
+    } else {
+      showMessage(`Đến lượt @${s.activePlayer} đánh quân O.`);
     }
 
-    const hostScore = document.getElementById("hostScore");
-    const viewerScore = document.getElementById("viewerScore");
+    setText("hostScore", s.scores?.host ?? 0);
+    setText("viewerScore", s.scores?.viewers ?? 0);
 
-    if (hostScore) {
-      hostScore.textContent = s.scores?.host ?? 0;
-    }
+    setText(
+      "opponent",
+      s.activePlayer ? "@" + s.activePlayer : "Chưa chọn"
+    );
 
-    if (viewerScore) {
-      viewerScore.textContent = s.scores?.viewers ?? 0;
-    }
-
-    const opponent = document.getElementById("opponent");
-
-    if (opponent) {
-      opponent.textContent = s.activePlayer
-        ? "@" + s.activePlayer
-        : "Chưa chọn";
-    }
+    setText(
+      "host",
+      s.host || "CHỦ LIVE"
+    );
   }
 
-  // =========================
-  // ĐẤU LẠI
-  // =========================
+  // ========================================================
+  // ĐỒNG HỒ CÁT
+  // ========================================================
 
-  function renderRematch(s) {
-    if (!rematchPanel) return;
+  function renderTimer() {
+    const panel = $("timerPanel");
+    const owner = $("timerOwner");
+    const number = $("timerNumber");
+    const message = $("timerMessage");
+    const topSand = $("topSand");
+    const bottomSand = $("bottomSand");
+    const stream = $("sandStream");
 
-    if (!s.winner || !s.activePlayer) {
-      rematchPanel.hidden = true;
-      rematchPanel.innerHTML = "";
+    if (!panel || !number || !state) return;
+
+    const s = state;
+    const deadline = Number(s.turnDeadline);
+
+    panel.classList.remove(
+      "timer-host",
+      "timer-viewer",
+      "timer-idle",
+      "timer-warning",
+      "timer-finished"
+    );
+
+    if (
+      s.winner ||
+      !Number.isFinite(deadline) ||
+      deadline <= 0
+    ) {
+      panel.classList.add("timer-idle");
+
+      if (s.winner) {
+        if (owner) owner.textContent = "🏁 VÁN ĐẤU ĐÃ KẾT THÚC";
+        number.textContent = "0";
+
+        if (message) {
+          message.textContent =
+            s.winner === "D"
+              ? "Ván đấu hòa!"
+              : s.winner === "X"
+                ? "Chủ LIVE chiến thắng!"
+                : "Người chơi chiến thắng!";
+        }
+      } else {
+        if (owner) owner.textContent = "⏳ ĐANG CHỜ LƯỢT CHƠI";
+        number.textContent = String(s.turnTime || 30);
+
+        if (message) message.textContent = "Chờ bắt đầu trận đấu";
+      }
+
+      if (topSand) topSand.style.transform = "scaleY(1)";
+      if (bottomSand) bottomSand.style.transform = "scaleY(0.05)";
+      if (stream) stream.style.opacity = "0";
+
       return;
     }
 
-    rematchPanel.hidden = false;
+    const isHostTurn = s.turn === "X";
+
+    panel.classList.add(
+      isHostTurn ? "timer-host" : "timer-viewer"
+    );
+
+    if (owner) {
+      owner.textContent = isHostTurn
+        ? "❌ LƯỢT CHỦ LIVE (X)"
+        : `⭕ LƯỢT @${s.activePlayer || "NGƯỜI CHƠI"} (O)`;
+    }
+
+    const serverNow = Date.now() + serverClockOffset;
+    const remainingMs = Math.max(0, deadline - serverNow);
+    const seconds = Math.ceil(remainingMs / 1000);
+
+    const totalTime = (Number(s.turnTime) || 30) * 1000;
+
+    const progress = Math.max(
+      0,
+      Math.min(1, remainingMs / totalTime)
+    );
+
+    number.textContent = String(seconds);
+
+    if (message) {
+      message.textContent = seconds <= 5
+        ? "⚠️ Nhanh tay! Sắp hết giờ!"
+        : isHostTurn
+          ? "Chủ LIVE đang có lượt đánh"
+          : `Đang chờ @${s.activePlayer || "người chơi"} đánh`;
+    }
+
+    if (seconds <= 5) panel.classList.add("timer-warning");
+    if (seconds <= 0) panel.classList.add("timer-finished");
+
+    if (topSand) {
+      topSand.style.transform = `scaleY(${progress})`;
+    }
+
+    if (bottomSand) {
+      bottomSand.style.transform = `scaleY(${1 - progress})`;
+    }
+
+    if (stream) {
+      stream.style.opacity = seconds > 0 ? "1" : "0";
+    }
+  }
+
+  // ========================================================
+  // KHU VỰC ĐẤU LẠI
+  // ========================================================
+
+  function ensureRematchPanel() {
+    let panel = $("rematchPanel");
+    if (panel) return panel;
+
+    panel = document.createElement("section");
+    panel.id = "rematchPanel";
+    panel.className = "rematch-panel";
+    panel.hidden = true;
+
+    const status = $("status");
+
+    if (status?.parentNode) {
+      status.parentNode.insertBefore(panel, status.nextSibling);
+    } else if (boardEl?.parentNode) {
+      boardEl.parentNode.insertBefore(panel, boardEl.nextSibling);
+    }
+
+    return panel;
+  }
+
+  function renderRematch(s) {
+    const panel = ensureRematchPanel();
+    if (!panel) return;
+
+    panel.replaceChildren();
+
+    if (!s.winner || !s.activePlayer) {
+      panel.hidden = true;
+      return;
+    }
+
+    panel.hidden = false;
+
+    const title = document.createElement("strong");
+    const description = document.createElement("p");
+    const button = document.createElement("button");
+
+    button.type = "button";
+    button.className = "rematch-button";
 
     const request = s.rematchRequest;
 
-    // Người xem đã yêu cầu đấu lại
     if (request === "viewer") {
-      rematchPanel.innerHTML = `
-        <div class="rematch-content">
-          <strong>Người xem muốn đấu lại!</strong>
-          <p>@${escapeHTML(s.activePlayer)} đang chờ chủ LIVE xác nhận.</p>
-        </div>
-      `;
+      title.textContent = "Người xem muốn đấu lại!";
+      description.textContent =
+        `@${s.activePlayer} đang chờ chủ LIVE xác nhận.`;
 
-      const confirmButton = createButton(
-        "✓ Đồng ý đấu lại",
-        async () => {
-          if (!confirm("Bắt đầu ván đấu lại với người chơi này?")) {
-            return;
-          }
+      button.textContent = "✓ Đồng ý đấu lại";
 
-          await post("/api/admin/rematch-confirm");
-        },
-        "rematch-button"
-      );
+      button.addEventListener("click", async () => {
+        if (!confirm("Bắt đầu ván đấu lại với người chơi này?")) return;
 
-      rematchPanel.querySelector(".rematch-content")
-        ?.appendChild(confirmButton);
+        await post("/api/admin/rematch-confirm");
+      });
 
+      panel.append(title, description, button);
       return;
     }
 
-    // Chủ LIVE đã yêu cầu đấu lại
     if (request === "host") {
-      rematchPanel.innerHTML = `
-        <div class="rematch-content">
-          <strong>Đã gửi yêu cầu đấu lại!</strong>
-          <p>Đang chờ @${escapeHTML(s.activePlayer)} xác nhận.</p>
-          <span class="rematch-wait">Vui lòng chờ...</span>
-        </div>
-      `;
+      title.textContent = "Đã gửi yêu cầu đấu lại!";
+      description.textContent =
+        `Đang chờ @${s.activePlayer} xác nhận.`;
 
+      panel.append(title, description);
       return;
     }
 
-    // Chưa có yêu cầu đấu lại
-    rematchPanel.innerHTML = `
-      <div class="rematch-content">
-        <strong>Ván đấu đã kết thúc!</strong>
-        <p>Bạn có muốn đấu thêm một ván với @${escapeHTML(s.activePlayer)}?</p>
-      </div>
-    `;
+    title.textContent = "Ván đấu đã kết thúc!";
+    description.textContent =
+      `Bạn có muốn đấu thêm một ván với @${s.activePlayer}?`;
 
-    const requestButton = createButton(
-      "↻ Yêu cầu đấu lại",
-      async () => {
-        if (!confirm("Gửi yêu cầu đấu lại cho người xem?")) {
-          return;
-        }
+    button.textContent = "↻ Yêu cầu đấu lại";
 
-        await post("/api/admin/rematch-request");
-      },
-      "rematch-button"
-    );
+    button.addEventListener("click", async () => {
+      if (!confirm("Gửi yêu cầu đấu lại cho người xem?")) return;
 
-    rematchPanel.querySelector(".rematch-content")
-      ?.appendChild(requestButton);
+      await post("/api/admin/rematch-request");
+    });
+
+    panel.append(title, description, button);
   }
 
-  // =========================
-  // NHẬN TRẠNG THÁI
-  // =========================
+  // ========================================================
+  // CHAT CHỦ LIVE - NGƯỜI ĐANG ĐẤU
+  // ========================================================
+
+  function ensureChatPanel() {
+    let panel = $("chatPanel");
+    if (panel) return panel;
+
+    panel = document.createElement("section");
+    panel.id = "chatPanel";
+    panel.className = "chat-panel";
+
+    panel.innerHTML = `
+      <h2>💬 TIN NHẮN VỚI NGƯỜI CHƠI</h2>
+      <div id="chatMessages" class="chat-messages" aria-live="polite">
+        <p id="chatEmpty">Tin nhắn giữa chủ LIVE và người đang đấu sẽ hiện ở đây.</p>
+      </div>
+      <div class="chat-compose">
+        <input id="chatInput" type="text" maxlength="300"
+          placeholder="Nhập tin nhắn..." autocomplete="off">
+        <button id="chatSend" type="button" aria-label="Gửi tin nhắn">➤</button>
+      </div>
+      <p id="chatNotice" class="chat-notice"></p>
+    `;
+
+    const soundbar = document.querySelector(".soundbar");
+    const boardSection = boardEl?.closest("section");
+
+    if (soundbar?.parentNode) {
+      soundbar.parentNode.insertBefore(panel, soundbar.nextSibling);
+    } else if (boardSection) {
+      boardSection.appendChild(panel);
+    } else {
+      document.querySelector("main")?.appendChild(panel);
+    }
+
+    addChatStyles();
+    $("chatSend")?.addEventListener("click", sendChat);
+
+    $("chatInput")?.addEventListener("keydown", event => {
+      if (event.key === "Enter") {
+        event.preventDefault();
+        sendChat();
+      }
+    });
+
+    return panel;
+  }
+
+  function addChatStyles() {
+    if ($("adminChatStyles")) return;
+
+    const style = document.createElement("style");
+    style.id = "adminChatStyles";
+
+    style.textContent = `
+      .chat-panel {
+        margin: 16px 0;
+        padding: 14px;
+        border: 1px solid rgba(190,145,75,.4);
+        border-radius: 16px;
+        background: rgba(255,248,232,.96);
+      }
+
+      .chat-messages {
+        height: 190px;
+        overflow-y: auto;
+        padding: 10px;
+        border-radius: 10px;
+        background: #fff;
+        border: 1px solid #ead9b8;
+      }
+
+      .chat-message {
+        margin: 7px 0;
+        padding: 8px 11px;
+        border-radius: 10px;
+        background: #f5ead5;
+        overflow-wrap: anywhere;
+      }
+
+      .chat-message.host-message {
+        margin-left: 12%;
+        background: #fce2b7;
+      }
+
+      .chat-message.viewer-message {
+        margin-right: 12%;
+        background: #e6f0ff;
+      }
+
+      .chat-message strong {
+        display: block;
+        margin-bottom: 3px;
+        font-size: 12px;
+      }
+
+      .chat-compose {
+        display: flex;
+        gap: 8px;
+        margin-top: 9px;
+      }
+
+      .chat-compose input {
+        flex: 1;
+        min-width: 0;
+      }
+
+      .chat-compose button {
+        min-width: 48px;
+      }
+
+      .chat-notice {
+        min-height: 18px;
+        font-size: 12px;
+      }
+    `;
+
+    document.head.appendChild(style);
+  }
+
+  function renderChat() {
+    ensureChatPanel();
+
+    const container = $("chatMessages");
+    if (!container) return;
+
+    container.replaceChildren();
+
+    if (!chatMessages.length) {
+      const empty = document.createElement("p");
+      empty.textContent = "Chưa có tin nhắn.";
+      container.appendChild(empty);
+    }
+
+    chatMessages.forEach(message => {
+      appendChatMessage(message, false);
+    });
+
+    container.scrollTop = container.scrollHeight;
+
+    const input = $("chatInput");
+    const send = $("chatSend");
+    const active = Boolean(state?.activePlayer && !state?.winner);
+
+    if (input) input.disabled = !hostAuthenticated || !active;
+    if (send) send.disabled = !hostAuthenticated || !active;
+
+    const notice = $("chatNotice");
+
+    if (notice) {
+      notice.textContent = !hostAuthenticated
+        ? "Nhập Admin PIN để kết nối chat."
+        : !active
+          ? "Chat sẽ mở khi có người chơi đang đấu."
+          : "Đang chat với @" + state.activePlayer;
+    }
+  }
+
+  function appendChatMessage(message, scroll = true) {
+    const container = $("chatMessages");
+    if (!container) return;
+
+    const empty = container.querySelector("p");
+    if (empty) empty.remove();
+
+    const row = document.createElement("div");
+    const isHost = message?.sender === "host";
+
+    row.className = "chat-message " +
+      (isHost ? "host-message" : "viewer-message");
+
+    const name = document.createElement("strong");
+    name.textContent = isHost
+      ? "CHỦ LIVE"
+      : "@" + String(message?.username || "Người chơi");
+
+    const content = document.createElement("div");
+    content.textContent = String(message?.text || message?.message || "");
+
+    row.append(name, content);
+    container.appendChild(row);
+
+    if (scroll) {
+      container.scrollTop = container.scrollHeight;
+    }
+  }
+
+  function sendChat() {
+    const input = $("chatInput");
+    const text = String(input?.value || "").trim();
+
+    if (!text) return;
+
+    if (!hostAuthenticated) {
+      setText("chatNotice", "Chưa xác thực Admin PIN.");
+      return;
+    }
+
+    if (!state?.activePlayer || state?.winner) {
+      setText("chatNotice", "Hiện chưa có người chơi đang đấu.");
+      return;
+    }
+
+    socket.emit("chat:send", text);
+
+    if (input) {
+      input.value = "";
+      input.focus();
+    }
+  }
+
+  socket.on("chat:history", messages => {
+    chatMessages = Array.isArray(messages) ? messages.slice(-50) : [];
+    renderChat();
+  });
+
+  socket.on("chat:message", message => {
+    chatMessages.push(message);
+
+    if (chatMessages.length > 50) {
+      chatMessages = chatMessages.slice(-50);
+    }
+
+    appendChatMessage(message);
+  });
+
+  socket.on("chat:error", message => {
+    setText(
+      "chatNotice",
+      typeof message === "string"
+        ? message
+        : message?.message || "Không gửi được tin nhắn."
+    );
+  });
+
+  // ========================================================
+  // NHẬN TRẠNG THÁI TỪ SERVER
+  // ========================================================
 
   function render(s) {
     if (!s || !Array.isArray(s.board)) return;
@@ -574,128 +860,114 @@
       serverClockOffset = Number(s.serverTime) - Date.now();
     }
 
+    if (s.roundId !== undefined) {
+      lastRoundId = s.roundId;
+    }
+
     renderInfo(s);
     renderBoard(s);
-    renderPendingQueue(s);
     renderQueue(s);
     renderTimer();
     renderRematch(s);
-
-    lastBoardCount = s.board.filter(Boolean).length;
-    lastWinner = s.winner || null;
+    renderChat();
   }
 
-  // =========================
-  // CẬP NHẬT ĐỒNG HỒ
-  // =========================
+  socket.on("state", render);
+
+  // ========================================================
+  // NÚT KẾT THÚC VÁN / VÁN MỚI
+  // ========================================================
+
+  $("next")?.addEventListener("click", async () => {
+    if (!confirm("Kết thúc ván và trở về hàng chờ?")) return;
+
+    await post("/api/admin/next");
+  });
+
+  // ========================================================
+  // RESET ĐIỂM
+  // ========================================================
+
+  $("reset")?.addEventListener("click", async () => {
+    if (!confirm("Bạn muốn xóa toàn bộ điểm số?")) return;
+
+    const result = await post("/api/admin/reset-score");
+
+    if (result.ok) {
+      playEffect("reset");
+    }
+  });
+
+  // ========================================================
+  // THÊM NGƯỜI CHƠI THỦ CÔNG
+  // ========================================================
+
+  $("addPlayer")?.addEventListener("click", async () => {
+    const input = $("giftUser");
+    const username = String(input?.value || "").trim();
+
+    if (!username) {
+      alert("Nhập tên TikTok người tặng quà.");
+      input?.focus();
+      return;
+    }
+
+    const result = await post("/api/admin/add-player", {
+      username,
+      giftName: "Đã xác nhận thủ công"
+    });
+
+    if (result.ok && input) {
+      input.value = "";
+    }
+  });
+
+  // ========================================================
+  // NÚT ÂM THANH
+  // sound.js tự quản lý sự kiện click.
+  // Không thêm listener ở admin.js để tránh bật/tắt hai lần.
+  // ========================================================
+
+  function updateSoundButton() {
+    const button = $("soundToggle");
+    if (!button || !window.CaroSound) return;
+
+    const enabled = window.CaroSound.isEnabled();
+
+    button.textContent = enabled ? "🔊" : "🔇";
+    button.title = enabled ? "Tắt âm thanh" : "Bật âm thanh";
+    button.setAttribute("aria-label", button.title);
+    button.setAttribute("aria-pressed", String(enabled));
+  }
+
+  // ========================================================
+  // ĐỒNG HỒ CẬP NHẬT LIÊN TỤC
+  // ========================================================
 
   setInterval(() => {
     if (state) renderTimer();
   }, 200);
 
-  // =========================
-  // SOCKET.IO
-  // =========================
+  // ========================================================
+  // KHỞI ĐỘNG
+  // ========================================================
 
-  socket.on("state", render);
-
-  socket.on("connect", () => {
-    console.log("Caro LIVE đã kết nối máy chủ.");
-  });
-
-  socket.on("disconnect", () => {
-    const status = document.getElementById("status");
-
-    if (status) {
-      status.textContent = "Mất kết nối máy chủ...";
-    }
-  });
-
-  socket.on("connect_error", error => {
-    console.error("Socket lỗi:", error.message);
-  });
-
-  // =========================
-  // KẾT THÚC VÁN / VÁN MỚI
-  // =========================
-
-  document.getElementById("next")?.addEventListener(
-    "click",
-    async () => {
-      if (!confirm("Kết thúc ván và trở về hàng chờ?")) return;
-
-      await post("/api/admin/next");
-    }
-  );
-
-  // =========================
-  // RESET ĐIỂM
-  // =========================
-
-  document.getElementById("reset")?.addEventListener(
-    "click",
-    async () => {
-      if (!confirm("Bạn muốn xóa toàn bộ điểm số?")) return;
-
-      await post("/api/admin/reset-score");
-    }
-  );
-
-  // =========================
-  // THÊM NGƯỜI CHƠI THỦ CÔNG
-  // =========================
-
-  document.getElementById("addPlayer")?.addEventListener(
-    "click",
-    async () => {
-      const input = document.getElementById("giftUser");
-      const username = input?.value.trim();
-
-      if (!username) {
-        alert("Nhập tên TikTok người chơi.");
-        return;
-      }
-
-      const result = await post("/api/admin/add-player", {
-        username,
-        giftName: "Đã xác nhận thủ công"
-      });
-
-      if (result.ok && input) {
-        input.value = "";
-      }
-    }
-  );
-
-  // =========================
-  // BẬT / TẮT ÂM THANH
-  // =========================
-
-  const soundToggle = document.getElementById("soundToggle");
-
-  function updateSoundButton() {
-    if (!soundToggle || !window.CaroSound) return;
-
-    soundToggle.textContent = window.CaroSound.isEnabled()
-      ? "🔊 Âm thanh: BẬT"
-      : "🔇 Âm thanh: TẮT";
-  }
-
-  soundToggle?.addEventListener("click", () => {
-    if (!window.CaroSound) {
-      alert("Không tìm thấy file sound.js!");
-      return;
-    }
-
-    const enabled = window.CaroSound.toggle();
-
-    updateSoundButton();
-
-    if (enabled) {
-      window.CaroSound.move();
-    }
-  });
-
+  createBoard();
+  ensureRematchPanel();
+  ensureChatPanel();
+  renderChat();
   updateSoundButton();
 
+  fetch("/api/state", { cache: "no-store" })
+    .then(response => {
+      if (!response.ok) throw new Error("Không tải được trạng thái.");
+      return response.json();
+    })
+    .then(render)
+    .catch(error => {
+      console.warn("Không tải được trạng thái ban đầu:", error);
+    });
+
+  console.log("Caro LIVE Admin đã khởi chạy.");
 })();
+w
