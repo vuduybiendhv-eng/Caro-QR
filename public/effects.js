@@ -320,7 +320,24 @@
         });
       }
 
-      drawFlower(flower);
+            // KHÔNG VẼ HOA ĐÈ LÊN BÀN CỜ
+      const board = document.getElementById("board");
+      let avoidBoard = false;
+
+      if (board) {
+        const rect = board.getBoundingClientRect();
+        const margin = flower.size + 5;
+
+        avoidBoard =
+          flower.x > rect.left - margin &&
+          flower.x < rect.right + margin &&
+          flower.y > rect.top - margin &&
+          flower.y < rect.bottom + margin;
+      }
+
+      if (!avoidBoard) {
+        drawFlower(flower);
+      }
     }
 
     drawParticles();
