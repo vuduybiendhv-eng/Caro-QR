@@ -11,7 +11,7 @@
    - Kết thúc ván
    - Reset điểm
    - Âm thanh và hiệu ứng
-   - EMOJI BAY NỔI TRÊN BÀN CỜ
+   - 7 EMOJI BAY NỔI TRÊN BÀN CỜ
 ========================================================= */
 
 (() => {
@@ -38,15 +38,14 @@
   let hostAuthenticated = false;
   let cells = [];
   let chatMessages = [];
+  let reactionButtons = [];
 
   // ========================================================
-  // EMOJI REACTIONS
+  // EMOJI REACTIONS - CHỈ 7 EMOJI
   // ========================================================
 
   const reactionList = [
-    "❤️", "😂", "😍", "🔥", "👏",
-    "👍", "😮", "😭", "🤣", "🎉",
-    "💪", "🥰", "💖", "⭐", "😎"
+    "😂", "👍", "❤️", "😱", "👏", "❌", "👋"
   ];
 
   function installReactionAnimation() {
@@ -59,7 +58,8 @@
       @keyframes caroReactionFloat {
         0% {
           opacity: 0;
-          transform: translate(-50%, 15px) scale(.6) rotate(-10deg);
+          transform: translate(-50%, 15px)
+                     scale(.6) rotate(-10deg);
         }
 
         15% {
@@ -68,13 +68,30 @@
 
         70% {
           opacity: 1;
-          transform: translate(-50%, -65px) scale(1.2) rotate(10deg);
+          transform: translate(-50%, -65px)
+                     scale(1.2) rotate(10deg);
         }
 
         100% {
           opacity: 0;
-          transform: translate(-50%, -110px) scale(.8) rotate(-8deg);
+          transform: translate(-50%, -110px)
+                     scale(.8) rotate(-8deg);
         }
+      }
+
+      .caro-reaction-stage {
+        position: relative;
+        display: block;
+        width: 100%;
+        max-width: 100%;
+      }
+
+      #reactionOverlay {
+        position: absolute;
+        inset: 0;
+        overflow: hidden;
+        pointer-events: none;
+        z-index: 50;
       }
 
       #reactionToolbar {
@@ -100,17 +117,101 @@
         opacity: .4;
         cursor: not-allowed;
       }
-
-      #reactionOverlay {
-        position: absolute;
-        inset: 0;
-        overflow: hidden;
-        pointer-events: none;
-        z-index: 50;
-      }
     `;
 
     document.head.appendChild(style);
+  }
+
+  function updateReactionControls() {
+    const canReact = Boolean(
+      hostAuthenticated &&
+      socket.connected &&
+      state?.activePlayer &&
+      !state?.winner
+    );
+
+    reactionButtons.forEach(button => {
+      button.disabled = !canReact;
+    });
+  }
+
+  function setupReactions() {
+    if (!boardEl || $("reactionToolbar")) return;
+
+    const boardContainer = boardEl.parentElement;
+
+    if (!boardContainer) return;
+
+    // Tạo lớp riêng bao quanh bàn cờ.
+    // Không thêm phần tử vào bên trong lưới 225 ô.
+    const stage = document.createElement("div");
+    stage.id = "caroReactionStage";
+    stage.className = "caro-reaction-stage";
+
+    boardContainer.insertBefore(stage, boardEl);
+    stage.appendChild(boardEl);
+
+    // Lớp hiển thị emoji nằm phía trên bàn cờ.
+    const overlay = document.createElement("div");
+    overlay.id = "reactionOverlay";
+    overlay.setAttribute("aria-hidden", "true");
+
+    stage.appendChild(overlay);
+
+    // Thanh chọn emoji nằm dưới bàn cờ.
+    const toolbar = document.createElement("div");
+    toolbar.id = "reactionToolbar";
+
+    reactionList.forEach(emoji => {
+      const button = document.createElement("button");
+
+      button.type = "button";
+      button.textContent = emoji;
+      button.title = "Gửi biểu cảm " + emoji;
+      button.setAttribute(
+        "aria-label",
+        "Gửi emoji " + emoji
+      );
+
+      button.addEventListener("click", () => {
+        if (!hostAuthenticated) {
+          setText(
+            "chatNotice",
+            "Vui lòng đăng nhập Admin PIN."
+          );
+          return;
+        }
+
+        if (!state?.activePlayer || state.winner) {
+          setText(
+            "chatNotice",
+            "Hiện chưa có trận đấu."
+          );
+          return;
+        }
+
+        if (!socket.connected) {
+          setText(
+            "chatNotice",
+            "Mất kết nối máy chủ."
+          );
+          return;
+        }
+
+        socket.emit("reaction:send", {
+          emoji,
+          x: 15 + Math.random() * 70,
+          y: 35 + Math.random() * 35
+        });
+      });
+
+      reactionButtons.push(button);
+      toolbar.appendChild(button);
+    });
+
+    boardContainer.appendChild(toolbar);
+
+    updateReactionControls();
   }
 
   function showFloatingReaction(data) {
@@ -128,8 +229,16 @@
 
     item.textContent = data.emoji;
 
-    const x = Math.max(10, Math.min(90, Number(data.x) || 50));
-    const y = Math.max(10, Math.min(90, Number(data.y) || 50));
+    const rawX = Number(data.x);
+    const rawY = Number(data.y);
+
+    const x = Number.isFinite(rawX)
+      ? Math.max(10, Math.min(90, rawX))
+      : 50;
+
+    const y = Number.isFinite(rawY)
+      ? Math.max(10, Math.min(90, rawY))
+      : 50;
 
     item.style.cssText = `
       position: absolute;
@@ -148,60 +257,6 @@
     setTimeout(() => {
       item.remove();
     }, 2300);
-  }
-
-  function setupReactions() {
-    if (!boardEl || $("reactionToolbar")) return;
-
-    // Tạo lớp phủ tuyệt đối, không làm thay đổi lưới bàn cờ.
-    boardEl.style.position = "relative";
-    boardEl.style.overflow = "hidden";
-
-    const overlay = document.createElement("div");
-    overlay.id = "reactionOverlay";
-    overlay.setAttribute("aria-hidden", "true");
-
-    boardEl.appendChild(overlay);
-
-    const toolbar = document.createElement("div");
-    toolbar.id = "reactionToolbar";
-
-    reactionList.forEach(emoji => {
-      const button = document.createElement("button");
-
-      button.type = "button";
-      button.textContent = emoji;
-      button.title = "Gửi biểu cảm " + emoji;
-      button.setAttribute("aria-label", "Gửi emoji " + emoji);
-
-      button.addEventListener("click", () => {
-        if (!hostAuthenticated) {
-          setText("chatNotice", "Vui lòng đăng nhập Admin PIN.");
-          return;
-        }
-
-        if (!state?.activePlayer || state.winner) {
-          setText("chatNotice", "Hiện chưa có trận đấu.");
-          return;
-        }
-
-        if (!socket.connected) {
-          setText("chatNotice", "Mất kết nối máy chủ.");
-          return;
-        }
-
-        socket.emit("reaction:send", {
-          emoji,
-          x: 15 + Math.random() * 70,
-          y: 35 + Math.random() * 35
-        });
-      });
-
-      toolbar.appendChild(button);
-    });
-
-    // Thanh emoji nằm bên dưới bàn cờ, không nằm trong chat.
-    boardEl.parentElement.appendChild(toolbar);
   }
 
   socket.on("reaction:show", showFloatingReaction);
@@ -284,6 +339,7 @@
       hostAuthenticated = false;
       renderChat();
       updateFixedButtons();
+      updateReactionControls();
       return;
     }
 
@@ -292,6 +348,7 @@
 
     renderChat();
     updateFixedButtons();
+    updateReactionControls();
   }
 
   socket.on("host:authenticated", () => {
@@ -299,6 +356,7 @@
 
     renderChat();
     updateFixedButtons();
+    updateReactionControls();
 
     console.log("Host đã xác thực thành công.");
   });
@@ -313,6 +371,7 @@
 
     renderChat();
     updateFixedButtons();
+    updateReactionControls();
   });
 
   socket.on("connect", () => {
@@ -320,6 +379,7 @@
 
     hostAuthenticated = false;
     authenticateHost();
+    updateReactionControls();
   });
 
   socket.on("disconnect", () => {
@@ -329,6 +389,7 @@
 
     renderChat();
     updateFixedButtons();
+    updateReactionControls();
   });
 
   socket.on("connect_error", error => {
@@ -471,6 +532,9 @@
     if (cells.length !== 225) {
       createBoard();
     }
+
+    // Lấy nước đi cuối cùng trước khi cập nhật các ô.
+    const lastIndex = getLastMoveIndex(s);
 
     s.board.forEach((value, index) => {
       const cell = cells[index];
@@ -1000,6 +1064,7 @@
     renderRematch(s);
     renderChat();
     updateFixedButtons();
+    updateReactionControls();
   }
 
   socket.on("state", render);
@@ -1191,6 +1256,7 @@
   renderChat();
   updateSoundButton();
   updateFixedButtons();
+  updateReactionControls();
 
   fetch("/api/state", {
     cache: "no-store"
