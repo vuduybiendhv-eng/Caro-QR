@@ -1,573 +1,535 @@
 
-const socket = io();
+(() => {
+  "use strict";
 
-const boardEl = document.getElementById("board");
-const notice = document.getElementById("notice");
-const statusEl = document.getElementById("status");
-const soundButton = document.getElementById("soundToggle");
+  const socket = io();
 
-const joinSection = document.querySelector(".caro-layout > .join");
-const joinButton = document.getElementById("join");
-const usernameInput = document.getElementById("username");
+  // ===== DOM =====
+  const boardEl = document.getElementById("board");
+  const noticeEl = document.getElementById("notice");
+  const statusEl = document.getElementById("status");
+  const soundToggle = document.getElementById("soundToggle");
 
-let state = null;
-let username = "";
-let registered = false;
-let firstState = true;
-let serverClockOffset = 0;
+  const joinSection =
+    document.querySelector(".caro-layout > .join") ||
+    document.getElementById("join");
 
-let pendingMoveIndex = null;
-let moveRequestTimeout = null;
+  const joinBtn = document.getElementById("join");
+  const usernameInput = document.getElementById("username");
 
-// KHOI PHUC TEN NGUOI CHOI DA LUU
-try {
-  username = localStorage.getItem("caroUsername") || "";
+  // ===== LOCAL STATE =====
+  let state = null;
+  let myName = localStorage.getItem("caro_username") || "";
+  let registered = false;
+  let pendingMove = false;
+  let lastRenderedMove = null;
+  let lastWinner = null;
+  let lastBoardCount = 0;
+  let noticeTimeout = null;
 
-  if (usernameInput && username) {
-    usernameInput.value = username;
+  // ===== REMATCH PANEL =====
+  const rematchPanel = document.createElement("section");
+  rematchPanel.id = "rematchPanel";
+  rematchPanel.className = "rematch-panel";
+  rematchPanel.hidden = true;
+
+  if (joinSection && joinSection.parentNode) {
+    joinSection.parentNode.insertBefore(rematchPanel, joinSection.nextSibling);
+  } else if (boardEl && boardEl.parentNode) {
+    boardEl.parentNode.insertBefore(rematchPanel, boardEl.nextSibling);
   }
-} catch (error) {
-  console.warn("Khong doc duoc ten da luu:", error);
-}
 
-// XOA TRANG THAI CHO NUOC DI
-function clearPendingMove() {
-  pendingMoveIndex = null;
-
-  if (moveRequestTimeout) {
-    clearTimeout(moveRequestTimeout);
-    moveRequestTimeout = null;
+  // ===== HELPERS =====
+  function escapeHTML(value) {
+    return String(value ?? "").replace(/[&<>"']/g, char => ({
+      "&": "&amp;",
+      "<": "&lt;",
+      ">": "&gt;",
+      '"': "&quot;",
+      "'": "&#039;"
+    })[char]);
   }
-}
 
-// HIEU UNG AN TOAN
-function playEffect(name, message) {
-  try {
-    const effects = window.CaroEffects;
+  function showNotice(message, duration = 3500) {
+    if (!noticeEl) return;
 
-    if (effects && typeof effects[name] === "function") {
-      effects[name](message);
+    noticeEl.textContent = message;
+    noticeEl.classList.add("show");
+
+    clearTimeout(noticeTimeout);
+    noticeTimeout = setTimeout(() => {
+      noticeEl.classList.remove("show");
+    }, duration);
+  }
+
+  function playSound(type) {
+    if (soundToggle && !soundToggle.checked) return;
+
+    if (window.CaroSound && typeof window.CaroSound[type] === "function") {
+      window.CaroSound[type]();
     }
-  } catch (error) {
-    console.warn("Khong chay duoc hieu ung:", name, error);
   }
-}
 
-// AM THANH AN TOAN
-function playSound(name) {
-  try {
-    const sound = window.CaroSound;
+  function playEffect(type) {
+    if (!window.CaroEffects) return;
 
-    if (sound && typeof sound[name] === "function") {
-      sound[name]();
+    if (typeof window.CaroEffects[type] === "function") {
+      window.CaroEffects[type]();
     }
-  } catch (error) {
-    console.warn("Khong chay duoc am thanh:", name, error);
   }
-}
 
-// CAP NHAT NUT BAT / TAT AM THANH
-function updateSoundButton() {
-  if (!soundButton || !window.CaroSound) return;
+  function boardCount(board) {
+    return Array.isArray(board)
+      ? board.filter(Boolean).length
+      : 0;
+  }
 
-  const enabled = window.CaroSound.isEnabled();
+  function getMyQueueItem(s) {
+    if (!myName) return null;
 
-  soundButton.textContent = enabled
-    ? "🔊 Tắt âm thanh"
-    : "🔇 Bật âm thanh";
+    const all = [
+      ...(Array.isArray(s.pendingQueue) ? s.pendingQueue : []),
+      ...(Array.isArray(s.queue) ? s.queue : [])
+    ];
 
-  soundButton.classList.toggle("off", !enabled);
-}
+    return all.find(item => {
+      const name = typeof item === "string" ? item : item?.name;
+      return name && name.toLowerCase() === myName.toLowerCase();
+    }) || null;
+  }
 
-// NUT BAT / TAT AM THANH
-if (soundButton) {
-  soundButton.onclick = () => {
-    if (!window.CaroSound) {
-      if (notice) {
-        notice.textContent = "Không tìm thấy file sound.js!";
-      }
+  function isMyGame(s) {
+    if (!s?.activePlayer || !myName) return false;
+
+    const activeName = typeof s.activePlayer === "string"
+      ? s.activePlayer
+      : s.activePlayer.name;
+
+    return activeName &&
+      activeName.toLowerCase() === myName.toLowerCase();
+  }
+
+  // ===== REGISTRATION =====
+  function registerViewer() {
+    if (!myName || !socket.connected) return;
+
+    socket.emit("viewer:register", {
+      username: myName,
+      name: myName
+    });
+
+    registered = true;
+  }
+
+  function submitJoin() {
+    const name = usernameInput?.value?.trim() || "";
+
+    if (!name) {
+      showNotice("Bạn hãy nhập tên trước nhé!");
+      usernameInput?.focus();
       return;
     }
 
-    const enabled = window.CaroSound.toggle();
+    if (name.length > 24) {
+      showNotice("Tên không được dài quá 24 ký tự.");
+      return;
+    }
 
-    updateSoundButton();
+    myName = name;
+    localStorage.setItem("caro_username", myName);
 
-    // PHAT THU MOT TIENG KHI BAT
-    if (enabled) {
+    registerViewer();
+    showNotice("Đã gửi yêu cầu tham gia. Vui lòng chờ chủ LIVE duyệt!");
+
+    renderRegistration();
+  }
+
+  function renderRegistration() {
+    if (!joinSection) return;
+
+    const item = state ? getMyQueueItem(state) : null;
+    const active = state ? isMyGame(state) : false;
+
+    if (active) {
+      joinSection.hidden = true;
+      return;
+    }
+
+    if (item) {
+      joinSection.hidden = true;
+      return;
+    }
+
+    if (state?.winner) {
+      joinSection.hidden = true;
+      return;
+    }
+
+    joinSection.hidden = false;
+
+    if (usernameInput && myName) {
+      usernameInput.value = myName;
+    }
+  }
+
+  // ===== STATUS =====
+  function renderStatus(s) {
+    if (!statusEl) return;
+
+    if (s.winner) {
+      const winnerText = s.winner === "X"
+        ? "CHỦ LIVE đã chiến thắng!"
+        : "BẠN ĐÃ CHIẾN THẮNG!";
+
+      statusEl.textContent = winnerText;
+      return;
+    }
+
+    if (!s.activePlayer) {
+      statusEl.textContent = "Đang chờ chủ LIVE chọn người chơi...";
+      return;
+    }
+
+    const activeName = typeof s.activePlayer === "string"
+      ? s.activePlayer
+      : s.activePlayer.name;
+
+    if (!isMyGame(s)) {
+      statusEl.textContent = `Đang diễn ra trận đấu với ${activeName || "người chơi khác"}`;
+      return;
+    }
+
+    statusEl.textContent = s.turn === "O"
+      ? "ĐẾN LƯỢT BẠN ĐÁNH!"
+      : "Đang chờ chủ LIVE đánh...";
+  }
+
+  // ===== BOARD =====
+  function renderBoard(s) {
+    if (!boardEl || !Array.isArray(s.board)) return;
+
+    const fragment = document.createDocumentFragment();
+
+    const lastMove = s.lastMove ||
+      (Array.isArray(s.lastMoves) && s.lastMoves.length
+        ? s.lastMoves[s.lastMoves.length - 1]
+        : null);
+
+    const lastIndex = typeof lastMove === "number"
+      ? lastMove
+      : lastMove?.index;
+
+    s.board.forEach((value, index) => {
+      const cell = document.createElement("button");
+      cell.type = "button";
+      cell.className = "cell";
+      cell.dataset.index = String(index);
+
+      if (value === "X") {
+        cell.classList.add("x");
+        cell.textContent = "X";
+      } else if (value === "O") {
+        cell.classList.add("o");
+        cell.textContent = "O";
+      }
+
+      if (index === lastIndex) {
+        cell.classList.add("last-move");
+        cell.setAttribute("aria-label", "Nước đi mới nhất");
+      }
+
+      const canPlay =
+        isMyGame(s) &&
+        s.turn === "O" &&
+        !s.winner &&
+        !value &&
+        !pendingMove;
+
+      cell.disabled = !canPlay;
+      cell.addEventListener("click", () => sendMove(index));
+
+      fragment.appendChild(cell);
+    });
+
+    boardEl.replaceChildren(fragment);
+  }
+
+  function sendMove(index) {
+    if (!state || !isMyGame(state)) return;
+    if (state.turn !== "O" || state.winner || pendingMove) return;
+    if (state.board?.[index]) return;
+
+    pendingMove = true;
+
+    socket.emit("viewer:move", {
+      index,
+      username: myName
+    });
+
+    setTimeout(() => {
+      pendingMove = false;
+      if (state) renderBoard(state);
+    }, 1800);
+  }
+
+  // ===== SCORE =====
+  function renderScores(s) {
+    const hostScoreEl =
+      document.getElementById("hostScore") ||
+      document.querySelector(".host-score");
+
+    const viewerScoreEl =
+      document.getElementById("viewerScore") ||
+      document.querySelector(".viewer-score");
+
+    if (hostScoreEl) {
+      hostScoreEl.textContent = s.scores?.host ?? 0;
+    }
+
+    if (viewerScoreEl) {
+      viewerScoreEl.textContent = s.scores?.viewers ?? 0;
+    }
+  }
+
+  // ===== QUEUE / PLAYER INFO =====
+  function renderPlayerInfo(s) {
+    const opponentEl =
+      document.getElementById("opponent") ||
+      document.querySelector(".opponent");
+
+    if (!opponentEl) return;
+
+    if (!s.activePlayer) {
+      opponentEl.textContent = "Chưa có đối thủ";
+      return;
+    }
+
+    const name = typeof s.activePlayer === "string"
+      ? s.activePlayer
+      : s.activePlayer.name;
+
+    opponentEl.textContent = name || "Người chơi";
+  }
+
+  // ===== TIMER =====
+  function renderTimer(s) {
+    const timerEl =
+      document.getElementById("timer") ||
+      document.querySelector(".timer");
+
+    if (!timerEl) return;
+
+    if (s.winner || !s.activePlayer) {
+      timerEl.textContent = "--";
+      return;
+    }
+
+    if (s.turn === "O") {
+      timerEl.textContent = isMyGame(s)
+        ? "LƯỢT CỦA BẠN"
+        : "LƯỢT NGƯỜI XEM";
+    } else {
+      timerEl.textContent = "LƯỢT CHỦ LIVE";
+    }
+  }
+
+  // ===== REMATCH =====
+  function renderRematch(s) {
+    if (!rematchPanel) return;
+
+    if (!s.winner || !s.activePlayer || !isMyGame(s)) {
+      rematchPanel.hidden = true;
+      rematchPanel.innerHTML = "";
+      return;
+    }
+
+    rematchPanel.hidden = false;
+
+    const request = s.rematchRequest;
+    const viewerRequested = request === "viewer";
+    const hostRequested = request === "host";
+
+    if (viewerRequested) {
+      rematchPanel.innerHTML = `
+        <div class="rematch-content">
+          <strong>Đã gửi yêu cầu đấu lại!</strong>
+          <p>Đang chờ chủ LIVE xác nhận.</p>
+          <span class="rematch-wait">Vui lòng chờ...</span>
+        </div>
+      `;
+      return;
+    }
+
+    if (hostRequested) {
+      rematchPanel.innerHTML = `
+        <div class="rematch-content">
+          <strong>Chủ LIVE muốn đấu lại!</strong>
+          <p>Bạn có đồng ý chơi thêm một ván không?</p>
+          <button type="button" id="confirmRematch" class="rematch-button">
+            Đồng ý đấu lại
+          </button>
+        </div>
+      `;
+
+      document.getElementById("confirmRematch")
+        ?.addEventListener("click", () => {
+          socket.emit("viewer:rematch-confirm");
+          showNotice("Đã gửi xác nhận đấu lại!");
+        });
+
+      return;
+    }
+
+    rematchPanel.innerHTML = `
+      <div class="rematch-content">
+        <strong>Ván đấu đã kết thúc!</strong>
+        <p>Bạn có muốn đấu thêm một ván với chủ LIVE không?</p>
+        <button type="button" id="requestRematch" class="rematch-button">
+          Đấu lại
+        </button>
+      </div>
+    `;
+
+    document.getElementById("requestRematch")
+      ?.addEventListener("click", () => {
+        socket.emit("viewer:rematch-request");
+        showNotice("Đã gửi yêu cầu đấu lại!");
+      });
+  }
+
+  // ===== GAME EFFECTS =====
+  function checkGameEffects(s) {
+    const count = boardCount(s.board);
+
+    if (count > lastBoardCount) {
       playSound("move");
     }
-  };
-}
 
-updateSoundButton();
+    lastBoardCount = count;
 
-// DONG HO CAT DEM NGUOC
-function renderTimer() {
-  const panel = document.getElementById("timerPanel");
-  const owner = document.getElementById("timerOwner");
-  const number = document.getElementById("timerNumber");
-  const message = document.getElementById("timerMessage");
-  const topSand = document.getElementById("topSand");
-  const bottomSand = document.getElementById("bottomSand");
-  const stream = document.getElementById("sandStream");
-
-  if (!panel || !number || !state) return;
-
-  const s = state;
-  const deadline = Number(s.turnDeadline);
-
-  panel.classList.remove(
-    "timer-host",
-    "timer-viewer",
-    "timer-idle",
-    "timer-warning",
-    "timer-finished"
-  );
-
-  if (s.winner || !Number.isFinite(deadline) || deadline <= 0) {
-    panel.classList.add("timer-idle");
-
-    if (s.winner) {
-      if (owner) owner.textContent = "🏁 VÁN ĐẤU ĐÃ KẾT THÚC";
-
-      number.textContent = "0";
-
-      if (message) {
-        message.textContent =
-          s.winner === "O"
-            ? "Bạn đã chiến thắng!"
-            : "Chủ LIVE chiến thắng!";
-      }
-    } else {
-      if (owner) owner.textContent = "⏳ ĐANG CHỜ LƯỢT CHƠI";
-
-      number.textContent = "30";
-
-      if (message) {
-        message.textContent = "Chờ bắt đầu trận đấu";
+    if (s.winner && s.winner !== lastWinner) {
+      if (s.winner === "O") {
+        playSound("win");
+        playEffect("win");
+      } else {
+        playSound("defeat");
+        playEffect("defeat");
       }
     }
 
-    if (topSand) topSand.style.transform = "scaleY(1)";
-    if (bottomSand) bottomSand.style.transform = "scaleY(0.05)";
-    if (stream) stream.style.opacity = "0";
-
-    return;
-  }
-
-  const isViewerTurn = s.turn === "O";
-
-  panel.classList.add(
-    isViewerTurn ? "timer-viewer" : "timer-host"
-  );
-
-  if (owner) {
-    owner.textContent = isViewerTurn
-      ? `⭕ LƯỢT CỦA BẠN · @${s.activePlayer || username || "NGƯỜI CHƠI"}`
-      : "❌ LƯỢT CHỦ LIVE (X)";
-  }
-
-  const serverNow = Date.now() + serverClockOffset;
-  const remainingMs = Math.max(0, deadline - serverNow);
-  const seconds = Math.ceil(remainingMs / 1000);
-  const totalTime = (Number(s.turnTime) || 30) * 1000;
-  const progress = Math.max(0, Math.min(1, remainingMs / totalTime));
-
-  number.textContent = String(seconds);
-
-  if (message) {
-    if (seconds <= 5) {
-      message.textContent = "⚠️ Nhanh tay! Sắp hết giờ!";
-    } else if (isViewerTurn) {
-      message.textContent =
-        s.activePlayer &&
-        username &&
-        s.activePlayer.toLowerCase() === username.toLowerCase()
-          ? "Đến lượt bạn đánh quân O"
-          : `Đang chờ @${s.activePlayer || "người chơi"} đánh`;
-    } else {
-      message.textContent = "Chủ LIVE đang có lượt đánh";
+    if (!s.winner && lastWinner) {
+      lastBoardCount = count;
     }
+
+    lastWinner = s.winner || null;
   }
 
-  if (seconds <= 5) panel.classList.add("timer-warning");
-  if (seconds <= 0) panel.classList.add("timer-finished");
+  // ===== MAIN RENDER =====
+  function render(s) {
+    if (!s) return;
 
-  if (topSand) {
-    topSand.style.transform = `scaleY(${progress})`;
+    state = s;
+
+    checkGameEffects(s);
+    renderBoard(s);
+    renderStatus(s);
+    renderScores(s);
+    renderPlayerInfo(s);
+    renderTimer(s);
+    renderRegistration();
+    renderRematch(s);
   }
 
-  if (bottomSand) {
-    bottomSand.style.transform = `scaleY(${1 - progress})`;
-  }
-
-  if (stream) {
-    stream.style.opacity = seconds > 0 ? "1" : "0";
-  }
-}
-
-// DONG KHUNG NHAP TEN
-function closeRegistration(message) {
-  registered = true;
-
-  if (joinSection) {
-    joinSection.classList.add("registration-done");
-
-    const label = joinSection.querySelector("label");
-    const row = joinSection.querySelector(".joinrow");
-    const description = joinSection.querySelector("p");
-
-    if (label) label.style.display = "none";
-    if (row) row.style.display = "none";
-    if (description) description.style.display = "none";
-  }
-
-  if (joinButton) {
-    joinButton.disabled = true;
-  }
-
-  if (notice) {
-    notice.textContent = message;
-    notice.style.display = "block";
-  }
-}
-
-// KIEM TRA TRANG THAI DANG KY
-function updateRegistration(s) {
-  if (!username || !s) return;
-
-  const key = username.toLowerCase();
-
-  const pending = Array.isArray(s.pendingQueue) &&
-    s.pendingQueue.some(
-      p => String(p.username).toLowerCase() === key
-    );
-
-  const approved = Array.isArray(s.queue) &&
-    s.queue.some(
-      p => String(p.username).toLowerCase() === key
-    );
-
-  const playing = s.activePlayer &&
-    s.activePlayer.toLowerCase() === key;
-
-  if (pending) {
-    closeRegistration("📨 Đã gửi yêu cầu! Vui lòng chờ chủ LIVE duyệt.");
-  } else if (playing) {
-    closeRegistration("🎮 Bạn đang tham gia trận đấu!");
-  } else if (approved) {
-    closeRegistration("✅ Bạn đã được duyệt! Hãy chờ chủ LIVE chọn đấu.");
-  }
-}
-
-// KIEM TRA NUOC DI VA KET QUA
-function checkGameEffects(previous, current) {
-  if (!previous || !current) return;
-
-  const oldCount = previous.board.filter(Boolean).length;
-  const newCount = current.board.filter(Boolean).length;
-
-  // CO QUAN MOI
-  if (newCount > oldCount) {
-    playSound("move");
-    playEffect("move");
-  }
-
-  // KET THUC VAN
-  if (!previous.winner && current.winner) {
-    if (current.winner === "O") {
-      // NGUOI XEM THANG
-      playSound("win");
-      playEffect("win", "BẠN CHIẾN THẮNG!");
-    } else {
-      // CHU LIVE THANG - NGUOI XEM THUA
-      playSound("defeat");
-      playEffect("defeat", "BẠN THUA CUỘC!");
-    }
-  }
-}
-
-// GUI NUOC DI
-function sendViewerMove(index) {
-  if (!socket.connected) {
-    if (notice) {
-      notice.textContent = "Mất kết nối máy chủ. Đang thử kết nối lại...";
-    }
-    return;
-  }
-
-  if (pendingMoveIndex !== null) return;
-
-  if (
-    !state ||
-    state.winner ||
-    state.turn !== "O" ||
-    !state.activePlayer ||
-    !username ||
-    state.activePlayer.toLowerCase() !== username.toLowerCase() ||
-    state.board[index] !== null
-  ) {
-    return;
-  }
-
-  pendingMoveIndex = index;
-
-  // KHOA CAC O TRONG KHI CHO MAY CHU
-  if (boardEl) {
-    boardEl.querySelectorAll(".cell").forEach(cell => {
-      cell.disabled = true;
+  // ===== EVENTS =====
+  if (joinBtn) {
+    joinBtn.addEventListener("click", event => {
+      event.preventDefault();
+      submitJoin();
     });
   }
 
-  socket.emit("viewer:move", { index });
-
-  // CHO TOI DA 5 GIAY
-  moveRequestTimeout = setTimeout(() => {
-    clearPendingMove();
-
-    if (state) render(state);
-
-    if (notice) {
-      notice.textContent =
-        "Chưa nhận được xác nhận từ máy chủ. Hãy kiểm tra kết nối rồi thử lại.";
-    }
-  }, 5000);
-}
-
-// CAP NHAT GIAO DIEN
-function render(s) {
-  if (!s || !Array.isArray(s.board)) return;
-
-  if (!firstState) {
-    checkGameEffects(state, s);
-  }
-
-  firstState = false;
-  state = s;
-
-  if (Number.isFinite(Number(s.serverTime))) {
-    serverClockOffset = Number(s.serverTime) - Date.now();
-  }
-
-  // NEU MAY CHU DA GHI NHAN NUOC DI
-  if (
-    pendingMoveIndex !== null &&
-    s.board[pendingMoveIndex] !== null
-  ) {
-    clearPendingMove();
-  }
-
-  // TEN PHONG
-  const roomEl = document.getElementById("room");
-
-  if (roomEl) {
-    roomEl.textContent = `${s.roomName || "Caro Live"} · 15×15`;
-  }
-
-  // TEN VA DIEM
-  const hostEl = document.getElementById("host");
-  const hostScoreEl = document.getElementById("hostScore");
-  const viewerScoreEl = document.getElementById("viewerScore");
-  const opponentEl = document.getElementById("opponent");
-
-  if (hostEl) hostEl.textContent = s.host || "@mbbb1118";
-  if (hostScoreEl) hostScoreEl.textContent = s.scores?.host ?? 0;
-  if (viewerScoreEl) viewerScoreEl.textContent = s.scores?.viewers ?? 0;
-  if (opponentEl) opponentEl.textContent = s.activePlayer || "Chưa chọn";
-
-  // TRANG THAI LUOT CHOI
-  if (statusEl) {
-    if (s.winner) {
-      statusEl.textContent = s.winner === "X"
-        ? "🏆 CHỦ LIVE THẮNG!"
-        : `🏆 ${s.activePlayer || "NGƯỜI CHƠI"} CHIẾN THẮNG!`;
-    } else {
-      statusEl.textContent = s.turn === "O"
-        ? `Đến lượt ${s.activePlayer || "người xem"} (quân O)`
-        : "Đến lượt chủ LIVE (quân X)";
-    }
-  }
-
-  updateRegistration(s);
-  renderTimer();
-
-  if (!boardEl) return;
-
-  // VE LAI BAN CO
-  boardEl.innerHTML = "";
-
-  s.board.forEach((value, index) => {
-    const cell = document.createElement("button");
-
-    cell.type = "button";
-    cell.className = "cell";
-
-    if (value === "X") {
-      cell.classList.add("X", "piece-x");
-    }
-
-    if (value === "O") {
-      cell.classList.add("O", "piece-o");
-    }
-
-    if (value) {
-      const stone = document.createElement("span");
-
-      stone.className = "stone";
-      stone.setAttribute("aria-hidden", "true");
-
-      cell.appendChild(stone);
-
-      cell.setAttribute(
-        "aria-label",
-        value === "X"
-          ? "Quân đỏ của chủ LIVE"
-          : "Quân đen của người chơi"
-      );
-    } else {
-      cell.setAttribute("aria-label", `Ô cờ ${index + 1}`);
-    }
-
-    const isMyTurn =
-      s.turn === "O" &&
-      !!s.activePlayer &&
-      !!username &&
-      s.activePlayer.toLowerCase() === username.toLowerCase();
-
-    cell.disabled =
-      !!value ||
-      !!s.winner ||
-      !isMyTurn ||
-      pendingMoveIndex !== null;
-
-    cell.addEventListener("click", () => {
-      if (cell.disabled) return;
-      sendViewerMove(index);
+  if (usernameInput) {
+    usernameInput.addEventListener("keydown", event => {
+      if (event.key === "Enter") {
+        event.preventDefault();
+        submitJoin();
+      }
     });
+  }
 
-    boardEl.appendChild(cell);
+  socket.on("connect", () => {
+    registered = false;
+
+    if (myName) {
+      registerViewer();
+    }
+
+    showNotice("Đã kết nối phòng Caro LIVE.");
   });
-}
 
-// CAP NHAT DONG HO MOI 200 MILI GIAY
-setInterval(() => {
-  if (state) renderTimer();
-}, 200);
+  socket.on("disconnect", () => {
+    registered = false;
+    showNotice("Mất kết nối. Đang thử kết nối lại...");
+  });
 
-// NHAN TRANG THAI
-socket.on("state", render);
+  socket.on("state", s => {
+    pendingMove = false;
+    render(s);
+  });
 
-// MAY CHU XAC NHAN NUOC DI
-socket.on("viewer:move:accepted", () => {
-  clearPendingMove();
-});
+  socket.on("notice", message => {
+    showNotice(
+      typeof message === "string"
+        ? message
+        : message?.message || "Có thông báo mới."
+    );
+  });
 
-// MAY CHU TU CHOI NUOC DI
-socket.on("viewer:move:rejected", message => {
-  clearPendingMove();
+  socket.on("viewer:move:accepted", () => {
+    pendingMove = false;
+  });
 
-  if (notice) {
-    notice.textContent = message || "Nước đi chưa được chấp nhận.";
+  socket.on("viewer:move:rejected", message => {
+    pendingMove = false;
+
+    showNotice(
+      typeof message === "string"
+        ? message
+        : message?.message || "Nước đi chưa được chấp nhận."
+    );
+
+    if (state) renderBoard(state);
+  });
+
+  socket.on("viewer:rematch:accepted", () => {
+    showNotice("Yêu cầu đấu lại đã được chấp nhận!");
+  });
+
+  socket.on("viewer:rematch:rejected", message => {
+    showNotice(
+      typeof message === "string"
+        ? message
+        : message?.message || "Yêu cầu đấu lại chưa được chấp nhận."
+    );
+  });
+
+  // ===== INITIAL LOAD =====
+  if (usernameInput && myName) {
+    usernameInput.value = myName;
   }
 
-  if (state) render(state);
-});
-
-// THONG BAO TU MAY CHU
-socket.on("notice", message => {
-  if (!notice) return;
-
-  notice.textContent = message;
-
-  if (
-    message.includes("Đã gửi yêu cầu") ||
-    message.includes("Yêu cầu đã gửi") ||
-    message.includes("đã được duyệt") ||
-    message.includes("đang tham gia")
-  ) {
-    closeRegistration(message);
-  } else if (
-    message.includes("Vui lòng nhập") ||
-    message.includes("Tên này")
-  ) {
-    if (joinButton) {
-      joinButton.disabled = false;
-      joinButton.textContent = "Vào phòng";
-    }
-  }
-});
-
-// KET NOI LAI
-socket.on("connect", () => {
-  clearPendingMove();
-
-  if (statusEl && !state) {
-    statusEl.textContent = "Đã kết nối máy chủ, đang tải bàn cờ…";
-  }
-
-  if (username) {
-    socket.emit("viewer:register", { username });
-  }
-});
-
-// MAT KET NOI
-socket.on("disconnect", () => {
-  clearPendingMove();
-
-  if (statusEl) {
-    statusEl.textContent = "Mất kết nối. Đang kết nối lại…";
-  }
-
-  if (boardEl) {
-    boardEl.querySelectorAll(".cell").forEach(cell => {
-      cell.disabled = true;
+  fetch("/api/state")
+    .then(response => {
+      if (!response.ok) throw new Error("Không tải được trạng thái phòng");
+      return response.json();
+    })
+    .then(s => render(s))
+    .catch(() => {
+      showNotice("Đang chờ dữ liệu phòng Caro LIVE...");
     });
+
+  if (myName) {
+    registerViewer();
   }
-});
 
-socket.on("connect_error", () => {
-  if (statusEl) {
-    statusEl.textContent = "Không kết nối được máy chủ!";
-  }
-});
-
-// DANG KY NGUOI CHOI
-if (joinButton) {
-  joinButton.onclick = () => {
-    if (registered) return;
-
-    username = usernameInput
-      ? usernameInput.value.trim().replace(/^@+/, "")
-      : "";
-
-    if (!username) {
-      if (notice) {
-        notice.textContent = "Bạn hãy nhập tên TikTok trước nhé.";
-      }
-      return;
-    }
-
-    try {
-      localStorage.setItem("caroUsername", username);
-    } catch (error) {
-      console.warn("Khong luu duoc ten:", error);
-    }
-
-    joinButton.disabled = true;
-    joinButton.textContent = "Đang gửi…";
-
-    if (!socket.connected) {
-      joinButton.disabled = false;
-      joinButton.textContent = "Vào phòng";
-
-      if (notice) {
-        notice.textContent = "Chưa kết nối được máy chủ. Hãy thử lại.";
-      }
-
-      return;
-    }
-
-    socket.emit("viewer:register", { username });
-  };
-}
+})();
